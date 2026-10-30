@@ -41,7 +41,7 @@ Out of scope: domain models (equipment, events, loans), authentication, deployme
 - [x] T3 (`2b4ee7e`) `apps/api`: Express 5 app, hexagonal layout (`src/modules/<module>/{domain,application,infrastructure}`), `GET /api/health` with test, Prisma schema (datasource + generator only), env config.
 - [x] T3.1 (`7619384`) Error handler follow-up (slice 02 review, non-blocking): honor `status`/`statusCode` from body-parser client errors (413/415/400) instead of mapping to 500, delegate to `next(err)` when `res.headersSent`, and test the generic 500 path (no internal message leak), JSON content-type on malformed JSON, and an oversized payload.
 - [x] T4 (`efe6ca6`) `apps/web`: Vite + React + TS + Tailwind 4 + PWA plugin, app shell showing API health, component test.
-- [ ] T4.1 Follow-up (slice 03 review, non-blocking): api `toClientError` must only echo `err.message` when `expose === true` (default to a generic message otherwise); web `getJson` must wrap fetch rejections and JSON parse failures into `ApiError` as documented (let `AbortError` pass through); test the hook's abort-on-unmount behavior (signal passed to fetch, unmount aborts, no state update after abort).
+- [x] T4.1 (`315d526`, `c3bbc89`) Follow-up (slice 03 review, non-blocking): api `toClientError` must only echo `err.message` when `expose === true` (default to a generic message otherwise); web `getJson` must wrap fetch rejections and JSON parse failures into `ApiError` as documented (let `AbortError` pass through); test the hook's abort-on-unmount behavior (signal passed to fetch, unmount aborts, no state update after abort).
 - [ ] T5 Docker: `apps/api/Dockerfile`, `apps/web/Dockerfile` (nginx), `docker-compose.yml`, `.env.example`.
 - [ ] T6 CI: `.github/workflows/ci.yml` (install, lint, typecheck, test, build, docker build).
 
@@ -78,6 +78,8 @@ Out of scope: domain models (equipment, events, loans), authentication, deployme
 - 2026-10-30: T4 done — `efe6ca6` (delegated writer). RED `Failed to resolve import "./client"` (4 files); GREEN 11/11 web tests. Clean install + lint/typecheck/test/build/format:check exit 0; no new `allowBuilds`. React lint rules live in `apps/web/eslint.config.js` (extends root) because plugins are not hoisted. Parent spot check: shared 3, api 14, web 11 passed. Slice 03: +473/−1 authored.
 - 2026-10-30: slice 03 native review (covers T3.1 + T4, `--base-ref 2b4ee7e`): medium (`slice_budget_reached`), consent granted, approved, acknowledged. Reviewed boundary: `efe6ca6`. Three non-blocking findings → T4.1.
 
+- 2026-10-30: T4.1 done — `315d526` (api: echo message only when `expose === true`, else `http.STATUS_CODES` phrase) and `c3bbc89` (web: wrap fetch/JSON failures in `ApiError`, pass `AbortError` through; abort tests as regression guards). RED api 2 failed / web 2 failed; GREEN api 15, web 16. Parent spot check: shared 3, api 15, web 16 passed. Assess (`--base-ref efe6ca6`): medium, `under_budget` (152 lines) → pending in slice 04 review.
+
 ## Next step
 
-T4.1 on `feat/monorepo-scaffold-03-web`, then T5 + T6 on `feat/monorepo-scaffold-04-delivery`.
+T5 + T6 on `feat/monorepo-scaffold-04-delivery`.
