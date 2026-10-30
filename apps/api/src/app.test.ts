@@ -29,6 +29,21 @@ describe('createApp', () => {
       .send('{"broken":');
 
     expect(response.status).toBe(400);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
     expect(response.body).toEqual({ error: { message: 'Malformed JSON body' } });
+  });
+
+  it('answers oversized JSON bodies with a JSON 413', async () => {
+    // express.json() rejects bodies above its default 100kb limit.
+    const oversized = JSON.stringify({ data: 'x'.repeat(200 * 1024) });
+
+    const response = await request(createApp())
+      .post('/api/health')
+      .set('Content-Type', 'application/json')
+      .send(oversized);
+
+    expect(response.status).toBe(413);
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body).toEqual({ error: { message: 'request entity too large' } });
   });
 });

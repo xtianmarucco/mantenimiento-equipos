@@ -17,11 +17,52 @@ function isMalformedJsonError(err: unknown): boolean {
   return err instanceof SyntaxError && 'type' in err && err.type === 'entity.parse.failed';
 }
 
+interface ClientError {
+  status: number;
+  message: string;
+}
+
+/**
+ * Extracts a 4xx status set by the error (the `http-errors` convention used by body-parser,
+ * for example 413 entity.too.large or 415 unsupported charset). Anything else is a server error.
+ */
+function toClientError(err: unknown): ClientError | undefined {
+  if (typeof err !== 'object' || err === null) {
+    return undefined;
+  }
+
+  const candidate = err as { status?: unknown; statusCode?: unknown; expose?: unknown };
+  const status = candidate.status ?? candidate.statusCode;
+
+  if (typeof status !== 'number' || !Number.isInteger(status) || status < 400 || status > 499) {
+    return undefined;
+  }
+
+  // Only echo the message when the error marks it as safe to expose (http-errors sets `expose`
+  // to true for 4xx); otherwise fall back to a generic message.
+  const message = err instanceof Error && candidate.expose !== false ? err.message : 'Bad request';
+
+  return { status, message };
+}
+
 /** Central error handler: never leaks stack traces or internal messages to clients. */
-export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, next) => {
+  // Once the response has started we cannot send a JSON body; let Express close the connection.
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
   if (isMalformedJsonError(err)) {
     const body: ErrorResponse = { error: { message: 'Malformed JSON body' } };
     res.status(400).json(body);
+    return;
+  }
+
+  const clientError = toClientError(err);
+  if (clientError) {
+    const body: ErrorResponse = { error: { message: clientError.message } };
+    res.status(clientError.status).json(body);
     return;
   }
 
