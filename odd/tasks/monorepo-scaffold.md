@@ -38,7 +38,8 @@ Out of scope: domain models (equipment, events, loans), authentication, deployme
 
 - [x] T1 Root workspace: `package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`, ESLint + Prettier, `.gitignore`, `.editorconfig`, `.nvmrc`, `README.md`. — `89b3a2a`
 - [x] T2 `packages/shared`: health schema with zod + unit test. — `08fd800`
-- [ ] T3 `apps/api`: Express 5 app, hexagonal layout (`src/modules/<module>/{domain,application,infrastructure}`), `GET /api/health` with test, Prisma schema (datasource + generator only), env config.
+- [x] T3 (`2b4ee7e`) `apps/api`: Express 5 app, hexagonal layout (`src/modules/<module>/{domain,application,infrastructure}`), `GET /api/health` with test, Prisma schema (datasource + generator only), env config.
+- [ ] T3.1 Error handler follow-up (slice 02 review, non-blocking): honor `status`/`statusCode` from body-parser client errors (413/415/400) instead of mapping to 500, delegate to `next(err)` when `res.headersSent`, and test the generic 500 path (no internal message leak), JSON content-type on malformed JSON, and an oversized payload.
 - [ ] T4 `apps/web`: Vite + React + TS + Tailwind 4 + PWA plugin, app shell showing API health, component test.
 - [ ] T5 Docker: `apps/api/Dockerfile`, `apps/web/Dockerfile` (nginx), `docker-compose.yml`, `.env.example`.
 - [ ] T6 CI: `.github/workflows/ci.yml` (install, lint, typecheck, test, build, docker build).
@@ -68,6 +69,9 @@ Out of scope: domain models (equipment, events, loans), authentication, deployme
 
 - 2026-10-30: slice 01 native review: assessed medium (`slice_budget_reached`), consent granted, reliability lens approved with no findings, acknowledged. Reviewed boundary: `361841d`.
 
+- 2026-10-30: T3 done — `2b4ee7e` (delegated writer). RED `Cannot find module './env.js'`/`./app.js`; GREEN 9/9 api tests. Clean `pnpm install|lint|typecheck|test|build|format:check` exit 0 after user approved `allowBuilds` (`@prisma/engines`, `esbuild`, `prisma`) in `pnpm-workspace.yaml`. Parent spot check `pnpm test`: shared 3 + api 9 passed. Slice 02: +358/−2 authored. Prisma pinned `^7.10.1` (npm `latest` points to 8.0 RC).
+- 2026-10-30: slice 02 native review: medium (`slice_budget_reached`), consent granted, approved, acknowledged. Reviewed boundary: `2b4ee7e`. Two non-blocking findings (WARNING error handler status mapping; SUGGESTION missing error-path tests) → T3.1.
+
 ## Next step
 
-T3 on `feat/monorepo-scaffold-02-api`.
+T3.1 on `feat/monorepo-scaffold-02-api`, then T4 on `feat/monorepo-scaffold-03-web`.
