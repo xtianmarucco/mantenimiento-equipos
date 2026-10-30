@@ -38,4 +38,37 @@ describe('fetchHealth', () => {
 
     await expect(fetchHealth()).rejects.toBeInstanceOf(ApiError);
   });
+
+  it('wraps a network failure in an ApiError that keeps the original cause', async () => {
+    const networkError = new TypeError('Failed to fetch');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(networkError));
+
+    const error: unknown = await fetchHealth().catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).cause).toBe(networkError);
+  });
+
+  it('wraps an unparseable JSON body in an ApiError that keeps the original cause', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response('<html>not json</html>', { headers: { 'Content-Type': 'text/html' } }),
+        ),
+    );
+
+    const error: unknown = await fetchHealth().catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).cause).toBeInstanceOf(SyntaxError);
+  });
+
+  it('lets an AbortError propagate unchanged', async () => {
+    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+
+    await expect(fetchHealth()).rejects.toBe(abortError);
+  });
 });
