@@ -1,0 +1,13 @@
+// Prisma schema for the API. Models are added by the feature that needs them.
+// The connection URL lives in `prisma.config.ts` (Prisma 7).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

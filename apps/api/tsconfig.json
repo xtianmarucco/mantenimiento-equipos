@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // Type-check against the shared package's source so a clean checkout does not need
+    // `packages/shared/dist`. The build config drops this mapping and uses the built package.
+    "paths": {
+      "@mantenimiento/shared": ["../../packages/shared/src/index.ts"]
+    }
+  },
+  "include": ["src", "prisma.config.ts", "vitest.config.ts"]
+}
