@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 
 /** JSON body returned for every error response. */
@@ -38,9 +40,12 @@ function toClientError(err: unknown): ClientError | undefined {
     return undefined;
   }
 
-  // Only echo the message when the error marks it as safe to expose (http-errors sets `expose`
-  // to true for 4xx); otherwise fall back to a generic message.
-  const message = err instanceof Error && candidate.expose !== false ? err.message : 'Bad request';
+  // Only echo the message when the error explicitly marks it as safe to expose (http-errors sets
+  // `expose: true` for 4xx); otherwise fall back to the generic status text, e.g. "Bad Request".
+  const message =
+    err instanceof Error && candidate.expose === true
+      ? err.message
+      : (STATUS_CODES[status] ?? 'Bad Request');
 
   return { status, message };
 }
