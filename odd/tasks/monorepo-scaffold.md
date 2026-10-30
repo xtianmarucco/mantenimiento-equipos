@@ -66,6 +66,8 @@ Out of scope: domain models (equipment, events, loans), authentication, deployme
 - 2026-10-30: T1 + T2 done (delegated writer). RED observed (`Cannot find module './index.js'`), GREEN 3/3 tests. `pnpm install|lint|typecheck|test|build|format:check` all exit 0; parent spot check `pnpm test` 3 passed. Slice 01: 251 authored insertions (lockfile excluded).
 - Toolchain notes: ESLint 10 (flat config via `eslint/config`), TypeScript pinned `~6.0` because typescript-eslint 8.72.1 requires `typescript <6.1.0`; root `lint` is a single `eslint .`; base tsconfig uses NodeNext (web will override with `bundler`).
 
+- 2026-10-30: slice 01 native review: assessed medium (`slice_budget_reached`), consent granted, reliability lens approved with no findings, acknowledged. Reviewed boundary: `361841d`.
+
 ## Next step
 
-Native review of slice 01, then T3 on `feat/monorepo-scaffold-02-api`.
+T3 on `feat/monorepo-scaffold-02-api`.
