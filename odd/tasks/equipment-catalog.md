@@ -42,7 +42,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T3.1 (`86e00b4`, `c2d6a3e`, `2b720e4`, `4adce0f`, `1694be7`) Follow-up (slice 02 review, non-blocking): integration tests for `PrismaLocationRepository` against a real Postgres (`prisma-location-repository.ts:54-69`, WARNING); in-memory repository sort must match Prisma (name, then id) (`in-memory-location-repository.ts:14-19`, WARNING + SUGGESTION); clarify `packages/shared/src/location.ts:41` per review (WARNING).
 - [x] T3.2 (`6468afe`) Spanish alphabetical sort (user decision 2026-11-01): ICU `es` collation (case- and accent-insensitive ordering) on `locations.name` and `equipment.name` via migration; in-memory repository uses the same rule (`Intl.Collator('es')`), contract test updated.
 - [x] T3.3 (`2a2ddf8`, `befc9c7`) Follow-up (slice 02 second review, non-blocking): document the ICU collation version runbook (`ALTER COLLATION es_natural REFRESH VERSION` + `REINDEX` after an image with a different icu-libs) in README/schema comment and consider pinning the postgres image minor version (R3-001 WARNING, R4-001); integration test helpers (`test-database-url.ts:14-25`, `global-setup.ts:9-14`), in-memory comparator and integration test suggestions (R1-001, R2-002, R3-002, R3-003).
-- [ ] T4 `apps/api` equipment module: domain, use cases (list with filters, get, create, update, retire), Prisma repository, router (`/api/equipment`), 409 on duplicate code, tests.
+- [x] T4 (`070566d`, `3aebf6b`, `39ea594`) `apps/api` equipment module: domain, use cases (list with filters, get, create, update, retire), Prisma repository, router (`/api/equipment`), 409 on duplicate code, tests.
+- [ ] T4.1 Follow-up: database CHECK constraint `warranty_until >= purchase_date` so concurrent PATCHes cannot store an inconsistent pair (application-only today).
 - [ ] T5 `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
 - [ ] T6 `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
 - [ ] T7 `apps/web` locations list + create/edit form, tests.
@@ -86,6 +87,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: T3.3 native review (`--base-ref 3826912`): high (shell in `ci.yml`), consent granted, 4 lenses approved, acknowledged. Reviewed boundary: `e0de0e5`. Three minor suggestions (comparator comment `in-memory-location-repository.ts:16-17`, `README.md:123`, `test-database-url.test.ts:22-31`) not scheduled. Slice 02 complete.
 
+- 2026-11-01: T4 done (delegated writer). `070566d` shared Spanish comparator `bySpanishNameThenId`; `3aebf6b` `ConflictError` → 409, `DomainValidationError` (with issues) → 400; `39ea594` equipment module (+1861/−18, ~1100 tests — exceeds the ~400 heuristic because of tests, accepted). Decisions: default list excludes `RETIRED` (`?status=RETIRED` lists only retired); PATCH may set any status (also un-retire); `POST /:id/retire` idempotent (no `updatedAt` bump); duplicate code `P2002` → 409; location checked through the port, racing `P2003` → 400 at `locationId`; warranty rule checked against the stored record (400 at `warrantyUntil`); date-only fields as `YYYY-MM-DD` at UTC midnight. RED 4 suites + 2 handler tests → GREEN api 119; integration 30/30 twice. Live checks all as expected. Parent spot check: tests shared 62, api 119, web 16.
+
 ## Next step
 
-T4 on `feat/equipment-catalog-03-equipment-api` on `feat/equipment-catalog-03-equipment-api`.
+Slice 03 review, then T4.1, then T5 on `feat/equipment-catalog-04-web-list` on `feat/equipment-catalog-03-equipment-api`.
