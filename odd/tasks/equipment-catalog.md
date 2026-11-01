@@ -43,7 +43,7 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T3.2 (`6468afe`) Spanish alphabetical sort (user decision 2026-11-01): ICU `es` collation (case- and accent-insensitive ordering) on `locations.name` and `equipment.name` via migration; in-memory repository uses the same rule (`Intl.Collator('es')`), contract test updated.
 - [x] T3.3 (`2a2ddf8`, `befc9c7`) Follow-up (slice 02 second review, non-blocking): document the ICU collation version runbook (`ALTER COLLATION es_natural REFRESH VERSION` + `REINDEX` after an image with a different icu-libs) in README/schema comment and consider pinning the postgres image minor version (R3-001 WARNING, R4-001); integration test helpers (`test-database-url.ts:14-25`, `global-setup.ts:9-14`), in-memory comparator and integration test suggestions (R1-001, R2-002, R3-002, R3-003).
 - [x] T4 (`070566d`, `3aebf6b`, `39ea594`) `apps/api` equipment module: domain, use cases (list with filters, get, create, update, retire), Prisma repository, router (`/api/equipment`), 409 on duplicate code, tests.
-- [ ] T4.1 Follow-up (confirmed by slice 03 review R3-001 WARNING): database CHECK constraint `warranty_until >= purchase_date` so concurrent PATCHes cannot store an inconsistent pair (application-only today); map its violation to 400 at `warrantyUntil`; also R2-001 explicit null check for `warrantyUntil` in the Prisma create mapping (`prisma-equipment-repository.ts:117`).
+- [x] T4.1 (`0cc5f03`, `fa09784`) Follow-up (confirmed by slice 03 review R3-001 WARNING): database CHECK constraint `warranty_until >= purchase_date` so concurrent PATCHes cannot store an inconsistent pair (application-only today); map its violation to 400 at `warrantyUntil`; also R2-001 explicit null check for `warrantyUntil` in the Prisma create mapping (`prisma-equipment-repository.ts:117`).
 - [ ] T5 `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
 - [ ] T6 `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
 - [ ] T7 `apps/web` locations list + create/edit form, tests.
@@ -91,6 +91,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: slice 03 native review (T4, `--base-ref 0c17b47`): high (update path), consent granted, 4 lenses approved, acknowledged. Reviewed boundary: `9b4d3cb`. Advisories → T4.1 (R2-002 stale task log fixed by this entry).
 
+- 2026-11-01: T4.1 done (delegated writer). Migration `20261101210000_equipment_warranty_check` adds `equipment_warranty_after_purchase_check`; schema comment (Prisma ignores CHECK: no drift). On this stack the violation is `PrismaClientKnownRequestError` `P2039` with SQLSTATE `23514` in `meta.driverAdapterError.cause`; mapped to `WarrantyBeforePurchaseError` only when the message names this constraint. RED 2/33 (bypass tests) → GREEN 33/33 twice; seed satisfies the rule. R2-001 explicit null check. Parent spot check: tests shared 62, api 119, web 16; format:check clean. Assess (`--base-ref 9e6cbe9`): medium, `under_budget` → pending in the slice 04 review. Slice 03 complete.
+
 ## Next step
 
-T4.1, then T5 on `feat/equipment-catalog-04-web-list` on `feat/equipment-catalog-03-equipment-api`.
+T5 on `feat/equipment-catalog-04-web-list`, then T5 on `feat/equipment-catalog-04-web-list` on `feat/equipment-catalog-03-equipment-api`.
