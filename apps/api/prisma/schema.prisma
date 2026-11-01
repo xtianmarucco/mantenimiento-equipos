@@ -1,6 +1,7 @@
 // Prisma schema for the API. Models are added by the feature that needs them.
 // The connection URL lives in `prisma.config.ts` (Prisma 7).
-// Enums and fields mirror the zod schemas in `packages/shared`; keep them in sync.
+// Enums and fields mirror the zod schemas in `packages/shared`; keep them in sync. Enum parity
+// is enforced by `src/shared/infrastructure/prisma-enums.test.ts`; length limits are not.
 // Tables and columns use snake_case (`@@map` / `@map`); the client keeps camelCase.
 
 generator client {
