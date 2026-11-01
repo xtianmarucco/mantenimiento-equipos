@@ -14,6 +14,7 @@ import type {
 import {
   DuplicateEquipmentCodeError,
   EquipmentLocationNotFoundError,
+  WarrantyBeforePurchaseError,
 } from '../domain/equipment-errors.js';
 import type { EquipmentRepository } from '../domain/equipment-repository.js';
 
@@ -21,6 +22,15 @@ import type { EquipmentRepository } from '../domain/equipment-repository.js';
 const UNIQUE_VIOLATION = 'P2002';
 const FOREIGN_KEY_VIOLATION = 'P2003';
 const RECORD_NOT_FOUND = 'P2025';
+
+/**
+ * The CHECK constraint `warranty_until IS NULL OR warranty_until >= purchase_date` (migration
+ * `20261101210000_equipment_warranty_check`). Through `@prisma/adapter-pg` its violation arrives as
+ * a `PrismaClientKnownRequestError` whose `meta.driverAdapterError.cause` carries the Postgres
+ * SQLSTATE (`23514`) and the message naming the constraint; there is no separate name field.
+ */
+const CHECK_VIOLATION_SQLSTATE = '23514';
+const WARRANTY_CHECK_CONSTRAINT = 'equipment_warranty_after_purchase_check';
 
 /**
  * `DATE` columns travel as a `Date` at UTC midnight. Building and reading them in UTC keeps the
@@ -68,12 +78,37 @@ function knownErrorCode(error: unknown): string | undefined {
   return error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined;
 }
 
+/** True when the error is a violation of the named warranty CHECK constraint, and only that one. */
+function isWarrantyCheckViolation(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+  const adapterError: unknown = error.meta?.['driverAdapterError'];
+  if (typeof adapterError !== 'object' || adapterError === null || !('cause' in adapterError)) {
+    return false;
+  }
+  const cause: unknown = adapterError.cause;
+  if (typeof cause !== 'object' || cause === null) {
+    return false;
+  }
+  const { code, originalMessage } = cause as { code?: unknown; originalMessage?: unknown };
+  return (
+    code === CHECK_VIOLATION_SQLSTATE &&
+    typeof originalMessage === 'string' &&
+    originalMessage.includes(`"${WARRANTY_CHECK_CONSTRAINT}"`)
+  );
+}
+
 /**
  * Translates the constraint violations a write can hit into domain errors. `equipment` has one
  * unique column besides its generated id (`code`) and one foreign key (`location_id`), so the
- * error code alone identifies the constraint; anything else is rethrown as is.
+ * error code alone identifies those; the warranty CHECK is matched by its name. Anything else is
+ * rethrown as is.
  */
 function toDomainError(error: unknown, data: EquipmentChanges): unknown {
+  if (isWarrantyCheckViolation(error)) {
+    return new WarrantyBeforePurchaseError();
+  }
   const code = knownErrorCode(error);
   if (code === UNIQUE_VIOLATION && data.code !== undefined) {
     return new DuplicateEquipmentCodeError(data.code);
