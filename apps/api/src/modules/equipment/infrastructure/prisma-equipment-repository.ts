@@ -150,7 +150,10 @@ export class PrismaEquipmentRepository implements EquipmentRepository {
           model: data.model,
           serialNumber: data.serialNumber ?? null,
           purchaseDate: toDbDate(data.purchaseDate),
-          warrantyUntil: data.warrantyUntil ? toDbDate(data.warrantyUntil) : null,
+          warrantyUntil:
+            data.warrantyUntil === undefined || data.warrantyUntil === null
+              ? null
+              : toDbDate(data.warrantyUntil),
           status: data.status,
           locationId: data.locationId,
           notes: data.notes ?? null,
