@@ -101,6 +101,27 @@ Equipment rules:
 - `purchaseDate` and `warrantyUntil` are calendar dates (`YYYY-MM-DD`), timestamps are ISO 8601
   UTC.
 
+### Warranty check before migrating existing data
+
+Migration `20261101210000_equipment_warranty_check` adds the CHECK constraint
+`equipment_warranty_after_purchase_check` (`warranty_until IS NULL OR warranty_until >=
+purchase_date`). On a database that already holds equipment, `prisma migrate deploy` fails with
+SQLSTATE `23514` if any row breaks the rule, so look for those rows first:
+
+```sql
+SELECT id, code, purchase_date, warranty_until
+FROM equipment
+WHERE warranty_until < purchase_date
+ORDER BY code;
+```
+
+Fix each row with its real dates (from the invoice or warranty card), for example
+`UPDATE equipment SET warranty_until = '2027-01-15' WHERE code = 'EQ-0042';`. When the
+warranty end is unknown, clear it instead: `UPDATE equipment SET warranty_until = NULL WHERE
+warranty_until < purchase_date;`. Rerun the query until it returns no rows, then deploy. If
+the deploy already failed, Prisma records the migration as failed: after fixing the data, run
+`prisma migrate resolve --rolled-back 20261101210000_equipment_warranty_check` and deploy again.
+
 Integration tests (`*.integration.test.ts`, `vitest.integration.config.ts`) run the Prisma
 repositories against a real PostgreSQL. `pnpm test` excludes them and needs no database. Each
 repository port has a shared contract suite (for example `location-repository.contract.ts`) that
