@@ -110,16 +110,19 @@ Variables (`.env`, read by Compose; never commit it):
 Every service has a health check (`pg_isready`, `GET /api/health`, the nginx root); `api` waits
 for a healthy `db` and `web` for a healthy `api`. nginx sends `no-cache` for `index.html`, the
 service worker and the manifest, and caches the content-hashed files under `/assets/` for a year.
+The security headers live in `apps/web/nginx/security-headers.conf`; every nginx `location` that
+adds its own header must include that file again, because nginx then stops inheriting them.
 
 ## CI
 
 `.github/workflows/ci.yml` runs on every push and pull request, with read-only repository access.
+Actions are pinned to commit SHAs, and checkout does not keep the token in the git config.
 A newer run on the same branch or pull request cancels the older one.
 
-| Job      | What it does                                                                                                         |
-| -------- | -------------------------------------------------------------------------------------------------------------------- |
-| `checks` | `pnpm install --frozen-lockfile`, then `lint`, `typecheck`, `test`, `build` and `format:check` on Node from `.nvmrc` |
-| `docker` | After `checks` passes, builds the `api` and `web` images (not pushed), caching layers in the GitHub Actions cache    |
+| Job      | What it does                                                                                                                                                                                                                                                                           |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `checks` | `pnpm install --frozen-lockfile`, then `lint`, `typecheck`, `test`, `build` and `format:check` on Node from `.nvmrc`                                                                                                                                                                   |
+| `docker` | After `checks` passes, builds the `api` and `web` images (not pushed, layers cached in the GitHub Actions cache), then starts the compose stack with throwaway credentials, waits for every service to be healthy, requests `/api/health` and `/` through nginx, and removes the stack |
 
 Run the same checks locally before pushing:
 
