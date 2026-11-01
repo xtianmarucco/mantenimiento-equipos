@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client", "vite-plugin-pwa/client"],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    // Type-check against the shared package's source so a clean checkout does not need
+    // `packages/shared/dist`. Mirrors the `resolve.alias` entry in vite.config.ts.
+    "paths": {
+      "@mantenimiento/shared": ["../../packages/shared/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

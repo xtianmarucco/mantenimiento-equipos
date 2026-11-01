@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Placeholder app icon: wrench on a teal tile. Replace with the final brand icon. -->
+  <rect width="512" height="512" rx="96" fill="#0f766e"/>
+  <path fill="#fff" d="M338 118a94 94 0 0 0-117 117L120 336a40 40 0 0 0 56 56l101-101a94 94 0 0 0 117-117l-56 56-51-5-5-51z"/>
+</svg>

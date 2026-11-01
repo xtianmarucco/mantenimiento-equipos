@@ -10,7 +10,8 @@ pnpm workspace monorepo, TypeScript everywhere.
 ```text
 .
 ├── apps/
-│   └── api/             # @mantenimiento/api: Express 5 + Prisma (PostgreSQL) REST API
+│   ├── api/             # @mantenimiento/api: Express 5 + Prisma (PostgreSQL) REST API
+│   └── web/             # @mantenimiento/web: React + Vite + Tailwind CSS 4 PWA
 ├── packages/
 │   └── shared/          # @mantenimiento/shared: zod schemas and types shared by API and web
 ├── eslint.config.js     # ESLint flat config for the whole workspace
@@ -57,6 +58,19 @@ builds the Express app and `src/server.ts` starts it. Copy `apps/api/.env.exampl
 | `pnpm --filter @mantenimiento/api generate` | Regenerate the Prisma client            |
 
 Health check: `GET /api/health` returns `{ "status": "ok" }`.
+
+## Web (`apps/web`)
+
+Mobile-first React PWA (Vite, Tailwind CSS 4, `vite-plugin-pwa`). Features live under
+`src/features/<feature>/` split into a container (hook that fetches) and a presentational
+component; API calls go through `src/shared/api/`, validated with the shared zod schemas. The dev
+server proxies `/api` to the API at `http://localhost:3000`.
+
+| Command                                    | What it does                       |
+| ------------------------------------------ | ---------------------------------- |
+| `pnpm --filter @mantenimiento/web dev`     | Start the Vite dev server          |
+| `pnpm --filter @mantenimiento/web build`   | Type-check and build into `dist`   |
+| `pnpm --filter @mantenimiento/web preview` | Serve the production build locally |
 
 Run a script in one package with a filter, for example:
 

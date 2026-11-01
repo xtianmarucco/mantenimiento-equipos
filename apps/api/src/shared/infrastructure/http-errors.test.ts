@@ -13,11 +13,18 @@ function createFailingApp(): Express {
   });
 
   app.get('/client-error', () => {
-    throw Object.assign(new Error('unsupported charset "LATIN-9"'), { status: 415 });
+    throw Object.assign(new Error('unsupported charset "LATIN-9"'), {
+      status: 415,
+      expose: true,
+    });
   });
 
   app.get('/status-code-error', () => {
     throw Object.assign(new Error('request aborted'), { statusCode: 400 });
+  });
+
+  app.get('/unexposed-client-error', () => {
+    throw Object.assign(new Error('secret lookup key abc123'), { status: 403, expose: false });
   });
 
   app.use(notFoundHandler);
@@ -54,13 +61,23 @@ describe('errorHandler', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('preserves a 4xx `statusCode` from the error', async () => {
+  it('preserves a 4xx `statusCode` and uses the generic status text when `expose` is unset', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     const response = await request(createFailingApp()).get('/status-code-error');
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: { message: 'request aborted' } });
+    expect(response.body).toEqual({ error: { message: 'Bad Request' } });
+  });
+
+  it('hides the message of a 4xx error explicitly marked as not exposable', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const response = await request(createFailingApp()).get('/unexposed-client-error');
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: { message: 'Forbidden' } });
+    expect(JSON.stringify(response.body)).not.toContain('abc123');
   });
 
   it('delegates to the next handler when headers were already sent', () => {
