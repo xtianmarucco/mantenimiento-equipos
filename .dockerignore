@@ -1,0 +1,26 @@
+# Keep the build context small and free of local state. Images install and build from source.
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+apps/api/src/generated
+
+# Secrets and local environment
+**/.env
+**/.env.*
+!**/.env.example
+
+# Repository and tooling metadata
+.git
+.github
+.idea
+.vscode
+.DS_Store
+odd
+
+# Container definitions themselves
+**/Dockerfile
+**/.dockerignore
+docker-compose.yml
