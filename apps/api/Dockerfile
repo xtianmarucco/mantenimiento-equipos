@@ -45,6 +45,19 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     && rm -rf /prod/api/dist \
     && cp -R apps/api/dist /prod/api/dist
 
+# --- migrate: one-shot job that applies Prisma migrations (and can run the dev seed) ---
+# Reuses the build stage's full install, which has the `prisma` CLI, the schema engine binary
+# downloaded for this platform by `@prisma/engines`, and `tsx` for the seed. Shipping the CLI in
+# the runtime image instead would add about 235 MB to its 89 MB bundle (see --no-optional above),
+# so the API image stays CLI-free and Compose runs this target before starting the API.
+# Build it with `--target migrate`; it must not be the last stage (that is the default target).
+FROM build AS migrate
+WORKDIR /repo/apps/api
+# Puts `prisma` and `tsx` (the seed runner Prisma spawns) on PATH.
+ENV PATH=/repo/apps/api/node_modules/.bin:$PATH
+USER 1000:1000
+CMD ["prisma", "migrate", "deploy"]
+
 # --- runtime: only the deployed bundle, run as the unprivileged `node` user ---
 FROM node:${NODE_VERSION}-alpine AS runtime
 ENV NODE_ENV=production \

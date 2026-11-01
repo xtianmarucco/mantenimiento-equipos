@@ -71,6 +71,22 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
+      # Same Dockerfile, `migrate` stage: the one-shot job compose runs before the api. It reuses
+      # the api build layers, so it reads the api cache scope as well as its own.
+      - name: Build migrate image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: migrate
+          push: false
+          load: true
+          tags: mantenimiento-equipos/api-migrate:local
+          cache-from: |
+            type=gha,scope=api
+            type=gha,scope=migrate
+          cache-to: type=gha,mode=max,scope=migrate
+
       - name: Build web image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -85,6 +101,10 @@ jobs:
       # `--wait` fails the step unless db, api and web all report healthy.
       - name: Start the compose stack
         run: docker compose up --detach --no-build --wait --wait-timeout 120
+
+      # The api only starts after the migrate job succeeded; seeding also exercises the schema.
+      - name: Seed the database
+        run: docker compose run --rm --no-deps migrate prisma db seed
 
       - name: Smoke test through nginx
         run: |
