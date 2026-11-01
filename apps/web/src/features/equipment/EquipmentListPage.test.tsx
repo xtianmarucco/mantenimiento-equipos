@@ -98,6 +98,27 @@ describe('EquipmentListPage', () => {
     expect(alert).toHaveTextContent('Internal server error');
   });
 
+  it('opens the detail with a back link that keeps the list filters', async () => {
+    const item = makeEquipment({ status: 'IN_REPAIR' });
+    stubApi({
+      '/api/health': () => jsonResponse({ status: 'ok' }),
+      '/api/equipment': () => jsonResponse([item]),
+      [`/api/equipment/${item.id}`]: () => jsonResponse(item),
+      '/api/locations': () => jsonResponse([LOCATION_CENTRO]),
+    });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/equipos?status=IN_REPAIR&type=FREEZER'],
+    });
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(await screen.findByRole('link', { name: /Freezer horizontal/ }));
+
+    expect(await screen.findByRole('link', { name: 'Volver a equipos' })).toHaveAttribute(
+      'href',
+      '/equipos?status=IN_REPAIR&type=FREEZER',
+    );
+  });
+
   it('aborts pending requests on unmount', async () => {
     const fetchMock = vi.fn(
       (_input: RequestInfo | URL, _init?: RequestInit) => new Promise<Response>(() => {}),

@@ -1,4 +1,4 @@
-import type { EquipmentStatus, EquipmentType } from '@mantenimiento/shared';
+import type { EquipmentStatus, EquipmentType, LocationKind } from '@mantenimiento/shared';
 
 /** Spanish labels for equipment enum values: the single source for UI copy. */
 export const STATUS_LABELS: Record<EquipmentStatus, string> = {
@@ -20,4 +20,15 @@ export const TYPE_LABELS: Record<EquipmentType, string> = {
 export const STATUS_FILTER_LABELS: Record<EquipmentStatus, string> = {
   ...STATUS_LABELS,
   RETIRED: 'Dados de baja',
+};
+
+/** Location kinds, singular (detail) and as option group labels (location select). */
+export const LOCATION_KIND_LABELS: Record<LocationKind, string> = {
+  OWN_STORE: 'Local propio',
+  THIRD_PARTY: 'Kiosco',
+};
+
+export const LOCATION_KIND_GROUP_LABELS: Record<LocationKind, string> = {
+  OWN_STORE: 'Locales propios',
+  THIRD_PARTY: 'Kioscos',
 };

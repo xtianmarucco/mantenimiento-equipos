@@ -4,18 +4,21 @@ import { Link } from 'react-router';
 import type { ResourceState } from '../../shared/hooks/useResource';
 import { focusRing } from '../../shared/ui/styles';
 import { TYPE_LABELS } from './labels';
+import type { EquipmentNavigationState } from './navigation';
 import { StatusBadge } from './StatusBadge';
 
 interface EquipmentListProps {
   state: ResourceState<EquipmentResponse[]>;
   /** Location names by id; a missing id shows as unknown. */
   locationNames: ReadonlyMap<string, string>;
+  /** Router state passed to the detail links (the list filters, for "back"). */
+  navigationState?: EquipmentNavigationState | undefined;
 }
 
 const MESSAGE_BOX = 'rounded-xl border border-slate-200 bg-white p-4 text-slate-700';
 
 /** Presentational list of equipment with loading, empty and error states. */
-export function EquipmentList({ state, locationNames }: EquipmentListProps) {
+export function EquipmentList({ state, locationNames, navigationState }: EquipmentListProps) {
   if (state.status === 'loading') {
     return (
       <p role="status" className={MESSAGE_BOX}>
@@ -46,6 +49,7 @@ export function EquipmentList({ state, locationNames }: EquipmentListProps) {
           <EquipmentListItem
             item={item}
             locationName={locationNames.get(item.locationId) ?? 'Ubicación desconocida'}
+            navigationState={navigationState}
           />
         </li>
       ))}
@@ -56,13 +60,16 @@ export function EquipmentList({ state, locationNames }: EquipmentListProps) {
 function EquipmentListItem({
   item,
   locationName,
+  navigationState,
 }: {
   item: EquipmentResponse;
   locationName: string;
+  navigationState: EquipmentNavigationState | undefined;
 }) {
   return (
     <Link
       to={`/equipos/${item.id}`}
+      state={navigationState}
       className={`block rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-teal-600 ${focusRing}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
