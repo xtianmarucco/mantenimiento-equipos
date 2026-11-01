@@ -35,16 +35,17 @@ pnpm install
 Run from the repository root. Workspace scripts run recursively and skip packages that do not
 define them.
 
-| Command             | What it does                                  |
-| ------------------- | --------------------------------------------- |
-| `pnpm lint`         | Lint the whole workspace with ESLint          |
-| `pnpm typecheck`    | Type-check every package                      |
-| `pnpm test`         | Run every package's tests                     |
-| `pnpm build`        | Build every package                           |
-| `pnpm format`       | Format all files with Prettier                |
-| `pnpm format:check` | Check formatting without writing (used in CI) |
-| `pnpm docker:up`    | Build and start the Docker stack (detached)   |
-| `pnpm docker:down`  | Stop the Docker stack (keeps the database)    |
+| Command                 | What it does                                                    |
+| ----------------------- | --------------------------------------------------------------- |
+| `pnpm lint`             | Lint the whole workspace with ESLint                            |
+| `pnpm typecheck`        | Type-check every package                                        |
+| `pnpm test`             | Run every package's tests                                       |
+| `pnpm test:integration` | API integration tests against PostgreSQL (needs `DATABASE_URL`) |
+| `pnpm build`            | Build every package                                             |
+| `pnpm format`           | Format all files with Prettier                                  |
+| `pnpm format:check`     | Check formatting without writing (used in CI)                   |
+| `pnpm docker:up`        | Build and start the Docker stack (detached)                     |
+| `pnpm docker:down`      | Stop the Docker stack (keeps the database)                      |
 
 ## API (`apps/api`)
 
@@ -77,6 +78,28 @@ Bodies and ids are validated with the `packages/shared` schemas. Errors are JSON
 (`issues` lists each field path), 404 for an unknown id. Locations cannot be deleted (equipment
 references them). `createApp` takes its repositories as arguments: `server.ts` passes Prisma
 ones, tests pass in-memory ones, so tests never open a database connection.
+
+Integration tests (`*.integration.test.ts`, `vitest.integration.config.ts`) run the Prisma
+repositories against a real PostgreSQL. `pnpm test` excludes them and needs no database. Each
+repository port has a shared contract suite (for example `location-repository.contract.ts`) that
+runs against the in-memory adapter in `pnpm test` and against the Prisma adapter here, so the
+fakes used by the other tests cannot drift from production. `pnpm test:integration` fails at once
+when `DATABASE_URL` is missing or names a database that does not end in `_test` (every table is
+truncated before each test), then applies the migrations with `prisma migrate deploy`. Helpers
+for new suites live in `src/test/integration/` (`createTestPrismaClient`, `truncateAllTables`).
+Locally, with throwaway values:
+
+```sh
+export POSTGRES_USER=test POSTGRES_PASSWORD=test-only-password POSTGRES_DB=mantenimiento_test
+export DATABASE_URL=postgresql://test:test-only-password@localhost:5432/mantenimiento_test
+docker compose up -d --wait db
+pnpm test:integration
+docker compose down -v
+```
+
+Location lists are ordered by name in the database collation, then by id. The `postgres:18-alpine`
+image (musl libc) sorts by Unicode code point: uppercase before lowercase, accented letters after
+`z`. The in-memory adapter mirrors that, and the contract suite fails if the database disagrees.
 
 Database: models live in `prisma/schema.prisma` (tables and columns in snake_case), migrations
 in `prisma/migrations` and the development seed in `prisma/seed.ts` (two own stores, two
@@ -151,10 +174,11 @@ adds its own header must include that file again, because nginx then stops inher
 Actions are pinned to commit SHAs, and checkout does not keep the token in the git config.
 A newer run on the same branch or pull request cancels the older one.
 
-| Job      | What it does                                                                                                                                                                                                                                                                                                                            |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `checks` | `pnpm install --frozen-lockfile`, then `lint`, `typecheck`, `test`, `build` and `format:check` on Node from `.nvmrc`                                                                                                                                                                                                                    |
-| `docker` | After `checks` passes, builds the `api`, `migrate` and `web` images (not pushed, layers cached in the GitHub Actions cache), then starts the compose stack with throwaway credentials (migrations run first), waits for every service to be healthy, runs the seed, requests `/api/health` and `/` through nginx, and removes the stack |
+| Job           | What it does                                                                                                                                                                                                                                                                                                                            |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `checks`      | `pnpm install --frozen-lockfile`, then `lint`, `typecheck`, `test`, `build` and `format:check` on Node from `.nvmrc`                                                                                                                                                                                                                    |
+| `integration` | Starts a `postgres:18-alpine` service container with throwaway credentials and runs `pnpm test:integration` (migrations, then the integration suites)                                                                                                                                                                                   |
+| `docker`      | After `checks` passes, builds the `api`, `migrate` and `web` images (not pushed, layers cached in the GitHub Actions cache), then starts the compose stack with throwaway credentials (migrations run first), waits for every service to be healthy, runs the seed, requests `/api/health` and `/` through nginx, and removes the stack |
 
 Run the same checks locally before pushing:
 
