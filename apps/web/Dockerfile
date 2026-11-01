@@ -5,6 +5,8 @@ ARG NODE_VERSION=26
 ARG NGINX_VERSION=1.30
 
 # --- base: Node + pnpm (corepack is not bundled with Node >= 25, so install it) ---
+# Same stage as in apps/api/Dockerfile: keep NODE_VERSION, COREPACK_VERSION and this stage
+# identical in both files.
 FROM node:${NODE_VERSION}-alpine AS base
 ARG COREPACK_VERSION=0.36.0
 ENV PNPM_HOME=/pnpm \
@@ -31,7 +33,10 @@ RUN pnpm --filter @mantenimiento/web run build
 
 # --- runtime: static files served by unprivileged nginx (uid 101, port 8080) ---
 FROM nginxinc/nginx-unprivileged:${NGINX_VERSION}-alpine AS runtime
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/web/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY apps/web/nginx/security-headers.conf /etc/nginx/snippets/security-headers.conf
+# Fail the build, not the container start, on an invalid configuration.
+RUN nginx -t
 COPY --from=build /repo/apps/web/dist /usr/share/nginx/html
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
