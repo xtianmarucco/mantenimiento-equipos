@@ -84,6 +84,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: T3.3 done (delegated writer). Postgres pinned to `postgres:18.6-alpine3.24` (same image ID as current `18-alpine`; Alpine release fixes the ICU major; no digest pin, consistent with repo policy) in compose and CI; README "Collation version" runbook (detection query, `REINDEX` + `ALTER COLLATION es_natural REFRESH VERSION`), schema comment points to it. Test DB URL guard rejects `dbname`/`database`/`db` query params (RED 3 failed → GREEN 7/7); P2000 error kind asserted; helper docblocks and comparator ICU note. Checks: lint/typecheck/test/build/format:check pass, actionlint clean, integration 10/10, runbook query `153.136.48 | 153.136.48`, schema diff comment-only. Parent spot check: pins grep, tests shared 62, api 56, web 16.
 
+- 2026-11-01: T3.3 native review (`--base-ref 3826912`): high (shell in `ci.yml`), consent granted, 4 lenses approved, acknowledged. Reviewed boundary: `e0de0e5`. Three minor suggestions (comparator comment `in-memory-location-repository.ts:16-17`, `README.md:123`, `test-database-url.test.ts:22-31`) not scheduled. Slice 02 complete.
+
 ## Next step
 
-Review T3.3 (assessed high), then T4 on `feat/equipment-catalog-03-equipment-api`.
+T4 on `feat/equipment-catalog-03-equipment-api` on `feat/equipment-catalog-03-equipment-api`.
