@@ -3,6 +3,10 @@
 // Enums and fields mirror the zod schemas in `packages/shared`; keep them in sync. Enum parity
 // is enforced by `src/shared/infrastructure/prisma-enums.test.ts`; length limits are not.
 // Tables and columns use snake_case (`@@map` / `@map`); the client keeps camelCase.
+// Name columns (`locations.name`, `equipment.name`) use the ICU collation `es_natural` (Spanish
+// alphabetical order), created and applied in migration `20261101200000_spanish_name_collation`.
+// Prisma cannot express column collations and ignores them when diffing, so `migrate dev` does
+// not revert it; a new name column that must sort in Spanish needs the same `COLLATE` by hand.
 
 generator client {
   provider            = "prisma-client"

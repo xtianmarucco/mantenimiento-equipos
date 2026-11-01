@@ -86,20 +86,26 @@ export function describeLocationRepositoryContract(
         await expect(repository.findAll()).resolves.toEqual([]);
       });
 
-      it('orders by name in Unicode code point order, then by id', async () => {
-        // Code point order: uppercase ASCII < lowercase ASCII < accented letters, and BMP letters
-        // (U+FF21) < astral ones (U+1F366). This is what the PostgreSQL database collation
-        // produces on the reference image; see `LocationRepository.findAll`.
+      it('orders by name in Spanish alphabetical order, then by id', async () => {
+        // Spanish ICU collation (see `LocationRepository.findAll`): accents and case do not move a
+        // name away from its letter ("Álamo" sits with "Alameda", lowercase interleaves with
+        // uppercase), "ñ" is its own letter after "n", and "ll" is not ("Llama" before "Luna").
+        // Case and accents only break ties between otherwise equal names: lowercase, then
+        // uppercase, then accented.
         const names = [
+          'Zeta',
           'heladería',
           'Ñandú',
-          'Zeta',
-          'Almacén Sur',
-          '\u{1F366} Kiosco',
+          'Oso',
+          'Luna',
+          'nube',
           'Álamo',
-          'Ａ Kiosco',
-          'Almacén',
+          'Alameda',
           'Kiosco Norte',
+          'ola',
+          'alameda',
+          'Llama',
+          'Almacén',
           'Kiosco Norte',
         ];
         const created = [];
@@ -114,20 +120,35 @@ export function describeLocationRepositoryContract(
         const result = await repository.findAll();
 
         expect(result.map((location) => location.name)).toEqual([
-          'Almacén',
-          'Almacén Sur',
-          'Kiosco Norte',
-          'Kiosco Norte',
-          'Zeta',
-          'heladería',
+          'alameda',
+          'Alameda',
           'Álamo',
+          'Almacén',
+          'heladería',
+          'Kiosco Norte',
+          'Kiosco Norte',
+          'Llama',
+          'Luna',
+          'nube',
           'Ñandú',
-          'Ａ Kiosco',
-          '\u{1F366} Kiosco',
+          'ola',
+          'Oso',
+          'Zeta',
         ]);
         expect(
           result.filter((location) => location.name === 'Kiosco Norte').map((l) => l.id),
         ).toEqual(tiedIds);
+      });
+
+      it('orders names the collation considers equal by their UTF-8 bytes', async () => {
+        // "Álamo" precomposed (U+00C1) and decomposed ("A" + U+0301) are canonically equivalent,
+        // so the collation ties; PostgreSQL then compares bytes (0x41 < 0xC3).
+        const precomposed = await repository.create(newLocation({ name: '\u00C1lamo' }));
+        const decomposed = await repository.create(newLocation({ name: 'A\u0301lamo' }));
+
+        const result = await repository.findAll();
+
+        expect(result.map((location) => location.id)).toEqual([decomposed.id, precomposed.id]);
       });
     });
 

@@ -97,9 +97,11 @@ pnpm test:integration
 docker compose down -v
 ```
 
-Location lists are ordered by name in the database collation, then by id. The `postgres:18-alpine`
-image (musl libc) sorts by Unicode code point: uppercase before lowercase, accented letters after
-`z`. The in-memory adapter mirrors that, and the contract suite fails if the database disagrees.
+Location lists are ordered by name in Spanish alphabetical order, then by id. `locations.name` and
+`equipment.name` use the ICU collation `es_natural` (created by a migration), so the order does not
+depend on the image's libc: accents and case do not push a name to the end ("Álamo" sits with
+"Alameda", lowercase interleaves with uppercase) and "ñ" follows "n". The in-memory adapter
+mirrors it with `Intl.Collator('es')`, and the contract suite fails if the two disagree.
 
 Database: models live in `prisma/schema.prisma` (tables and columns in snake_case), migrations
 in `prisma/migrations` and the development seed in `prisma/seed.ts` (two own stores, two

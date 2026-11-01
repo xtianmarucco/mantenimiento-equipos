@@ -11,18 +11,21 @@ export interface InMemoryLocationRepositoryOptions {
   now?: () => Date;
 }
 
+/** ICU Spanish at its default (tertiary) strength, as the `es_natural` column collation. */
+const spanish = new Intl.Collator('es', { usage: 'sort', sensitivity: 'variant' });
+
 /**
- * Compares by Unicode code point, the order PostgreSQL produces for the database collation on the
- * reference image (see `LocationRepository.findAll`). UTF-8 byte order is code point order; plain
- * `<` compares UTF-16 code units, which misplaces characters outside the Basic Multilingual Plane.
+ * UTF-8 byte order, which is code point order: PostgreSQL's tie-break for names a deterministic
+ * collation considers equal, and the order of lowercase UUID strings. Plain `<` compares UTF-16
+ * code units, which misplaces characters outside the Basic Multilingual Plane.
  */
-function byCodePoint(a: string, b: string): number {
+function byUtf8Bytes(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
 }
 
-/** Same order as the Prisma adapter: name, then id. */
+/** Same order as the Prisma adapter (see `LocationRepository.findAll`): name, then id. */
 function byNameThenId(a: Location, b: Location): number {
-  return byCodePoint(a.name, b.name) || byCodePoint(a.id, b.id);
+  return spanish.compare(a.name, b.name) || byUtf8Bytes(a.name, b.name) || byUtf8Bytes(a.id, b.id);
 }
 
 /** Adapter: keeps locations in a Map. Used by tests and local experiments; nothing is persisted. */
