@@ -1,8 +1,34 @@
+import { errorResponseSchema } from '@mantenimiento/shared';
 import type { z } from 'zod';
+
+interface ApiErrorOptions extends ErrorOptions {
+  /** HTTP status of a non-2xx response. */
+  status?: number | undefined;
+  /** `error.message` of a response that follows the API error contract. */
+  apiMessage?: string | undefined;
+}
 
 /** Raised when an API call fails: network error, non-2xx status or unexpected payload. */
 export class ApiError extends Error {
   override readonly name = 'ApiError';
+  readonly status: number | undefined;
+  readonly apiMessage: string | undefined;
+
+  constructor(message: string, { status, apiMessage, ...options }: ApiErrorOptions = {}) {
+    super(message, options);
+    this.status = status;
+    this.apiMessage = apiMessage;
+  }
+}
+
+/** The `error.message` of an error response body, when it follows the API error contract. */
+async function readApiMessage(response: Response): Promise<string | undefined> {
+  try {
+    const parsed = errorResponseSchema.safeParse(await response.json());
+    return parsed.success ? parsed.data.error.message : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -45,7 +71,10 @@ export async function getJson<Schema extends z.ZodType>(
     throw wrapUnlessAborted(error, `GET ${path} failed: network error`);
   }
   if (!response.ok) {
-    throw new ApiError(`GET ${path} failed with status ${response.status}`);
+    throw new ApiError(`GET ${path} failed with status ${response.status}`, {
+      status: response.status,
+      apiMessage: await readApiMessage(response),
+    });
   }
 
   let payload: unknown;
