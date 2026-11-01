@@ -2,11 +2,19 @@ import { useEffect, useState } from 'react';
 
 import { ApiError } from '../api/client';
 
-/** UI state of data loaded from the API. `message` is the API error message, when it sent one. */
+/**
+ * UI state of data loaded from the API. On error, `message` is the API error message and
+ * `httpStatus` the response status, when there was a response.
+ */
 export type ResourceState<T> =
   | { status: 'loading' }
   | { status: 'success'; data: T }
-  | { status: 'error'; message?: string | undefined };
+  | { status: 'error'; message?: string | undefined; httpStatus?: number | undefined };
+
+/** True when the request failed because the resource does not exist (404). */
+export function isNotFound(state: ResourceState<unknown>): boolean {
+  return state.status === 'error' && state.httpStatus === 404;
+}
 
 /**
  * Runs `load` on mount and whenever it changes (memoize it with `useCallback`), aborting the
@@ -28,8 +36,15 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>): Resou
       .catch((error: unknown) => {
         // An aborted request belongs to a newer `load` or an unmounted component; ignore it.
         if (!controller.signal.aborted) {
-          const message = error instanceof ApiError ? error.apiMessage : undefined;
-          setSettled({ load, state: { status: 'error', message } });
+          const apiError = error instanceof ApiError ? error : undefined;
+          setSettled({
+            load,
+            state: {
+              status: 'error',
+              message: apiError?.apiMessage,
+              httpStatus: apiError?.status,
+            },
+          });
         }
       });
 

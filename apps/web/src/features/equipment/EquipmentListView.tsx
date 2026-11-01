@@ -5,6 +5,7 @@ import type { ResourceState } from '../../shared/hooks/useResource';
 import { focusRing } from '../../shared/ui/styles';
 import { EquipmentFilterBar, type LocationOption } from './EquipmentFilterBar';
 import { EquipmentList } from './EquipmentList';
+import { filtersToSearchParams } from './filters';
 
 interface EquipmentListViewProps {
   filters: EquipmentListQuery;
@@ -36,7 +37,11 @@ export function EquipmentListView({
         </Link>
       </div>
       <EquipmentFilterBar filters={filters} locations={locations} onChange={onFiltersChange} />
-      <EquipmentList state={equipment} locationNames={locationNames} />
+      <EquipmentList
+        state={equipment}
+        locationNames={locationNames}
+        navigationState={{ listSearch: filtersToSearchParams(filters).toString() }}
+      />
     </section>
   );
 }

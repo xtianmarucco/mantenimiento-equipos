@@ -1,5 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router';
 
+import { EquipmentDetailPage } from '../features/equipment/EquipmentDetailPage';
 import { EquipmentListPage } from '../features/equipment/EquipmentListPage';
 import { AppLayout } from './AppLayout';
 import { PlaceholderPage } from './PlaceholderPage';
@@ -22,17 +23,7 @@ export const routes: RouteObject[] = [
           <PlaceholderPage title="Nuevo equipo" message={COMING_SOON} backLink={BACK_TO_LIST} />
         ),
       },
-      // T6: equipment detail.
-      {
-        path: 'equipos/:id',
-        element: (
-          <PlaceholderPage
-            title="Detalle del equipo"
-            message={COMING_SOON}
-            backLink={BACK_TO_LIST}
-          />
-        ),
-      },
+      { path: 'equipos/:id', element: <EquipmentDetailPage /> },
       // T7: locations.
       {
         path: 'ubicaciones',

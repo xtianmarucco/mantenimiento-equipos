@@ -38,7 +38,6 @@ describe('routes', () => {
 
   it.each([
     ['/equipos/nuevo', 'Nuevo equipo'],
-    ['/equipos/33333333-3333-4333-8333-333333333333', 'Detalle del equipo'],
     ['/ubicaciones', 'Ubicaciones'],
   ])('reserves %s with a placeholder page', async (path, title) => {
     renderAt(path);
