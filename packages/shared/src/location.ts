@@ -13,11 +13,16 @@ export const locationKindSchema = z.enum(['OWN_STORE', 'THIRD_PARTY']);
 
 export type LocationKind = z.infer<typeof locationKindSchema>;
 
-/** Digits with optional leading `+`, spaces, dashes and parentheses; 6 to 20 characters. */
+/**
+ * Digits, spaces, dashes and parentheses, with an optional leading `+`. After trimming, the whole
+ * value (the `+` included) must be 6 to 20 characters, matching the `phone VARCHAR(20)` column.
+ */
 const phoneSchema = z
   .string()
   .trim()
-  .regex(/^\+?[0-9\s()-]{6,20}$/, 'Invalid phone number')
+  .min(6, 'Invalid phone number')
+  .max(20, 'Invalid phone number')
+  .regex(/^\+?[0-9\s()-]+$/, 'Invalid phone number')
   .nullable()
   .optional();
 

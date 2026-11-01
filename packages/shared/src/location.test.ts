@@ -60,6 +60,35 @@ describe('createLocationSchema', () => {
       false,
     );
   });
+
+  // The phone column is VARCHAR(20): the limit counts every character, including a leading `+`.
+  const phone = (value: string) => createLocationSchema.safeParse({ ...validCreate, phone: value });
+
+  it('accepts a phone of exactly 20 characters, with or without a leading +', () => {
+    expect(phone('1'.repeat(20)).success).toBe(true);
+    expect(phone(`+${'1'.repeat(19)}`).success).toBe(true);
+  });
+
+  it('rejects a phone of 21 characters, with or without a leading +', () => {
+    expect(phone('1'.repeat(21)).success).toBe(false);
+    expect(phone(`+${'1'.repeat(20)}`).success).toBe(false);
+  });
+
+  it('accepts a phone of exactly 6 characters and rejects 5', () => {
+    expect(phone('123456').success).toBe(true);
+    expect(phone('12345').success).toBe(false);
+  });
+
+  it('counts the length after trimming surrounding whitespace', () => {
+    const result = phone(`  ${'1'.repeat(20)}  `);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.phone).toBe('1'.repeat(20));
+  });
+
+  it('rejects a + that is not the first character', () => {
+    expect(phone('011+4444-0000').success).toBe(false);
+  });
 });
 
 describe('updateLocationSchema', () => {
