@@ -19,6 +19,12 @@ export {
 } from './equipment.js';
 export { healthResponseSchema, type HealthResponse } from './health.js';
 export {
+  errorIssueSchema,
+  errorResponseSchema,
+  type ErrorIssue,
+  type ErrorResponse,
+} from './http-error.js';
+export {
   createLocationSchema,
   locationKindSchema,
   locationResponseSchema,

@@ -2,7 +2,11 @@ import express, { type Express, type Request, type Response } from 'express';
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { z } from 'zod';
+
+import { NotFoundError } from '../domain/not-found-error.js';
 import { errorHandler, notFoundHandler } from './http-errors.js';
+import { parseRequest } from './request-validation.js';
 
 /** Minimal app whose routes fail in controlled ways, wired to the real handlers. */
 function createFailingApp(): Express {
@@ -25,6 +29,23 @@ function createFailingApp(): Express {
 
   app.get('/unexposed-client-error', () => {
     throw Object.assign(new Error('secret lookup key abc123'), { status: 403, expose: false });
+  });
+
+  app.get('/missing-record', () => {
+    throw new NotFoundError('Widget 42 not found');
+  });
+
+  app.get('/invalid-query', (req) => {
+    parseRequest(
+      z.object({ page: z.coerce.number().int().min(1) }),
+      req.query,
+      'Invalid query string',
+    );
+  });
+
+  app.get('/schema-bug', () => {
+    // A ZodError that does not come from validating the request is a server bug, not a 400.
+    z.object({ id: z.uuid() }).parse({ id: 'nope' });
   });
 
   app.use(notFoundHandler);
@@ -78,6 +99,38 @@ describe('errorHandler', () => {
     expect(response.status).toBe(403);
     expect(response.body).toEqual({ error: { message: 'Forbidden' } });
     expect(JSON.stringify(response.body)).not.toContain('abc123');
+  });
+
+  it('maps a NotFoundError to a JSON 404 with its message, without logging', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const response = await request(createFailingApp()).get('/missing-record');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: { message: 'Widget 42 not found' } });
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('maps a request validation failure to a JSON 400 listing each issue path', async () => {
+    const response = await request(createFailingApp()).get('/invalid-query?page=0');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        message: 'Invalid query string',
+        issues: [{ path: 'page', message: expect.any(String) }],
+      },
+    });
+  });
+
+  it('treats a ZodError outside request validation as an internal error', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const response = await request(createFailingApp()).get('/schema-bug');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ error: { message: 'Internal server error' } });
+    expect(consoleError).toHaveBeenCalledOnce();
   });
 
   it('delegates to the next handler when headers were already sent', () => {

@@ -1,11 +1,10 @@
 import { STATUS_CODES } from 'node:http';
 
+import type { ErrorResponse } from '@mantenimiento/shared';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 
-/** JSON body returned for every error response. */
-export interface ErrorResponse {
-  error: { message: string };
-}
+import { NotFoundError } from '../domain/not-found-error.js';
+import { RequestValidationError } from './request-validation.js';
 
 /** Catch-all for requests that no router handled. */
 export const notFoundHandler: RequestHandler = (req, res) => {
@@ -61,6 +60,18 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, next)
   if (isMalformedJsonError(err)) {
     const body: ErrorResponse = { error: { message: 'Malformed JSON body' } };
     res.status(400).json(body);
+    return;
+  }
+
+  if (err instanceof RequestValidationError) {
+    const body: ErrorResponse = { error: { message: err.message, issues: [...err.issues] } };
+    res.status(400).json(body);
+    return;
+  }
+
+  if (err instanceof NotFoundError) {
+    const body: ErrorResponse = { error: { message: err.message } };
+    res.status(404).json(body);
     return;
   }
 

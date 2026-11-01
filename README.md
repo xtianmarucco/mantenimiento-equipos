@@ -65,6 +65,19 @@ builds the Express app and `src/server.ts` starts it. Copy `apps/api/.env.exampl
 
 Health check: `GET /api/health` returns `{ "status": "ok" }`.
 
+| Endpoint                   | What it does                                      |
+| -------------------------- | ------------------------------------------------- |
+| `GET /api/locations`       | List locations, sorted by name                    |
+| `GET /api/locations/:id`   | One location                                      |
+| `POST /api/locations`      | Create a location (201)                           |
+| `PATCH /api/locations/:id` | Change some fields; `null` clears an optional one |
+
+Bodies and ids are validated with the `packages/shared` schemas. Errors are JSON
+`{ "error": { "message", "issues"? } }` (`errorResponseSchema`): 400 for an invalid body or id
+(`issues` lists each field path), 404 for an unknown id. Locations cannot be deleted (equipment
+references them). `createApp` takes its repositories as arguments: `server.ts` passes Prisma
+ones, tests pass in-memory ones, so tests never open a database connection.
+
 Database: models live in `prisma/schema.prisma` (tables and columns in snake_case), migrations
 in `prisma/migrations` and the development seed in `prisma/seed.ts` (two own stores, two
 third-party kiosks and equipment in every status). The `db:*` scripts need `DATABASE_URL`; with

@@ -1,0 +1,66 @@
+import { randomUUID } from 'node:crypto';
+
+import { omitUndefined } from '../../../shared/infrastructure/omit-undefined.js';
+import type { Location, LocationChanges, NewLocation } from '../domain/location.js';
+import type { LocationRepository } from '../domain/location-repository.js';
+
+export interface InMemoryLocationRepositoryOptions {
+  /** Initial contents. */
+  locations?: readonly Location[];
+  /** Clock used for `createdAt`/`updatedAt`; defaults to the system clock. */
+  now?: () => Date;
+}
+
+function byName(a: Location, b: Location): number {
+  if (a.name !== b.name) {
+    return a.name < b.name ? -1 : 1;
+  }
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/** Adapter: keeps locations in a Map. Used by tests and local experiments; nothing is persisted. */
+export class InMemoryLocationRepository implements LocationRepository {
+  private readonly store = new Map<string, Location>();
+  private readonly now: () => Date;
+
+  constructor(options: InMemoryLocationRepositoryOptions = {}) {
+    this.now = options.now ?? (() => new Date());
+    for (const location of options.locations ?? []) {
+      this.store.set(location.id, location);
+    }
+  }
+
+  async findAll(): Promise<Location[]> {
+    return [...this.store.values()].sort(byName);
+  }
+
+  async findById(id: string): Promise<Location | undefined> {
+    return this.store.get(id);
+  }
+
+  async create(data: NewLocation): Promise<Location> {
+    const timestamp = this.now();
+    const location: Location = {
+      id: randomUUID(),
+      name: data.name,
+      kind: data.kind,
+      address: data.address ?? null,
+      contactName: data.contactName ?? null,
+      phone: data.phone ?? null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    this.store.set(location.id, location);
+    return location;
+  }
+
+  async update(id: string, changes: LocationChanges): Promise<Location | undefined> {
+    const current = this.store.get(id);
+    if (!current) {
+      return undefined;
+    }
+    const updated: Location = { ...current, ...omitUndefined(changes), updatedAt: this.now() };
+    this.store.set(id, updated);
+    return updated;
+  }
+}
