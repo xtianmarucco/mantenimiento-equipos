@@ -41,6 +41,7 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T3 (`6c5f0ce`) `apps/api` locations module: domain, use cases, Prisma repository, router (`/api/locations`), tests with in-memory repository and HTTP tests.
 - [x] T3.1 (`86e00b4`, `c2d6a3e`, `2b720e4`, `4adce0f`, `1694be7`) Follow-up (slice 02 review, non-blocking): integration tests for `PrismaLocationRepository` against a real Postgres (`prisma-location-repository.ts:54-69`, WARNING); in-memory repository sort must match Prisma (name, then id) (`in-memory-location-repository.ts:14-19`, WARNING + SUGGESTION); clarify `packages/shared/src/location.ts:41` per review (WARNING).
 - [x] T3.2 (`6468afe`) Spanish alphabetical sort (user decision 2026-11-01): ICU `es` collation (case- and accent-insensitive ordering) on `locations.name` and `equipment.name` via migration; in-memory repository uses the same rule (`Intl.Collator('es')`), contract test updated.
+- [ ] T3.3 Follow-up (slice 02 second review, non-blocking): document the ICU collation version runbook (`ALTER COLLATION es_natural REFRESH VERSION` + `REINDEX` after an image with a different icu-libs) in README/schema comment and consider pinning the postgres image minor version (R3-001 WARNING, R4-001); integration test helpers (`test-database-url.ts:14-25`, `global-setup.ts:9-14`), in-memory comparator and integration test suggestions (R1-001, R2-002, R3-002, R3-003).
 - [ ] T4 `apps/api` equipment module: domain, use cases (list with filters, get, create, update, retire), Prisma repository, router (`/api/equipment`), 409 on duplicate code, tests.
 - [ ] T5 `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
 - [ ] T6 `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
@@ -79,6 +80,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: T3.2 done — `6468afe` (delegated writer, +76/−29). Deterministic ICU collation `es_natural` (`provider = icu, locale = 'es'`, default strength) on `locations.name` and `equipment.name`; in-memory: `Intl.Collator('es', { sensitivity: 'variant' })`, then UTF-8 bytes, then id. Node ICU 78.3 and image icu-libs 78.1 agreed on ~35 probes. Prisma does not model collations: schema comment; drift check "No difference detected", `migrate dev` "Already in sync". RED unit 1 / integration 1 failed → GREEN unit 28, integration 10/10 twice. Live: `Álamo | almacén | Heladería Centro | … | nube | Ñandú | Zeta`. T4: order by name, id; reuse the in-memory comparator; new name columns need `COLLATE "es_natural"`. Parent spot check: tests shared 62, api 53, web 16.
 
+- 2026-11-01: slice 02 second native review (T3.1 + T3.2, `--base-ref 6c5f0ce`): high, consent granted, 4 lenses approved, acknowledged. Reviewed boundary: `3826912`. Non-blocking advisories → T3.3 (R2-001 stale task log fixed by this entry).
+
 ## Next step
 
-Slice 02 review (T3.1 + T3.2), then T4 on `feat/equipment-catalog-03-equipment-api`.
+T3.3 (small), then T4 on `feat/equipment-catalog-03-equipment-api`.
