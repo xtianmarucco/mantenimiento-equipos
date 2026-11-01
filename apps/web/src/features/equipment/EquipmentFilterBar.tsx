@@ -28,6 +28,8 @@ export function EquipmentFilterBar({ filters, locations, onChange }: EquipmentFi
       onChange({ ...filters, [key]: event.target.value || undefined });
   }
 
+  const unlistedLocation = unlistedLocationOption(filters.locationId, locations);
+
   return (
     <form
       role="search"
@@ -48,10 +50,15 @@ export function EquipmentFilterBar({ filters, locations, onChange }: EquipmentFi
         label="Ubicación"
         value={filters.locationId}
         onChange={update('locationId')}
-        disabled={locations.status !== 'success'}
+        // Disabled while loading; after a load error it stays usable only to clear the filter.
+        disabled={
+          locations.status === 'loading' ||
+          (locations.status === 'error' && filters.locationId === undefined)
+        }
         hint={locations.status === 'error' ? 'No se pudieron cargar las ubicaciones.' : undefined}
       >
         <option value="">Todas las ubicaciones</option>
+        {unlistedLocation && <option value={unlistedLocation.id}>{unlistedLocation.label}</option>}
         {locations.status === 'success' &&
           locations.data.map((location) => (
             <option key={location.id} value={location.id}>
@@ -70,6 +77,26 @@ export function EquipmentFilterBar({ filters, locations, onChange }: EquipmentFi
       </FilterSelect>
     </form>
   );
+}
+
+/**
+ * An option for a `locationId` filter that is not among the loaded locations (a stale or edited
+ * URL, or locations still loading or failed). The filter still applies to the list, so the
+ * select must show it as selected and let the user clear it, instead of falsely showing "all".
+ */
+function unlistedLocationOption(
+  locationId: string | undefined,
+  locations: ResourceState<LocationOption[]>,
+): { id: string; label: string } | undefined {
+  if (locationId === undefined) {
+    return undefined;
+  }
+  if (locations.status !== 'success') {
+    return { id: locationId, label: 'Ubicación seleccionada' };
+  }
+  return locations.data.some((location) => location.id === locationId)
+    ? undefined
+    : { id: locationId, label: 'Ubicación desconocida' };
 }
 
 interface FilterSelectProps {

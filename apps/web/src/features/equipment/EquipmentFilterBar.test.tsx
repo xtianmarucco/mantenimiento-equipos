@@ -87,6 +87,48 @@ describe('EquipmentFilterBar', () => {
     expect(onChange).toHaveBeenLastCalledWith({ status: undefined, type: 'FREEZER' });
   });
 
+  it('keeps an unknown location filter visible and clearable', async () => {
+    const unknownId = '99999999-9999-4999-8999-999999999999';
+    const onChange = vi.fn();
+    render(
+      <EquipmentFilterBar
+        filters={{ locationId: unknownId }}
+        locations={{ status: 'success', data: LOCATIONS }}
+        onChange={onChange}
+      />,
+    );
+
+    const location = screen.getByRole('combobox', { name: 'Ubicación' });
+    expect(location).toHaveValue(unknownId);
+    expect(within(location).getByRole('option', { selected: true })).toHaveTextContent(
+      'Ubicación desconocida',
+    );
+
+    await userEvent.selectOptions(location, 'Todas las ubicaciones');
+    expect(onChange).toHaveBeenLastCalledWith({ locationId: undefined });
+  });
+
+  it('keeps a location filter clearable when locations cannot be loaded', async () => {
+    const onChange = vi.fn();
+    render(
+      <EquipmentFilterBar
+        filters={{ locationId: LOCATION_KIOSCO.id }}
+        locations={{ status: 'error' }}
+        onChange={onChange}
+      />,
+    );
+
+    const location = screen.getByRole('combobox', { name: 'Ubicación' });
+    expect(location).toBeEnabled();
+    expect(location).toHaveValue(LOCATION_KIOSCO.id);
+    expect(within(location).getByRole('option', { selected: true })).toHaveTextContent(
+      'Ubicación seleccionada',
+    );
+
+    await userEvent.selectOptions(location, 'Todas las ubicaciones');
+    expect(onChange).toHaveBeenLastCalledWith({ locationId: undefined });
+  });
+
   it('disables the location filter while locations load', () => {
     render(
       <EquipmentFilterBar filters={{}} locations={{ status: 'loading' }} onChange={vi.fn()} />,
