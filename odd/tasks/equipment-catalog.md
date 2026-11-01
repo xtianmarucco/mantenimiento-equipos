@@ -45,8 +45,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T4 (`070566d`, `3aebf6b`, `39ea594`) `apps/api` equipment module: domain, use cases (list with filters, get, create, update, retire), Prisma repository, router (`/api/equipment`), 409 on duplicate code, tests.
 - [x] T4.1 (`0cc5f03`, `fa09784`) Follow-up (confirmed by slice 03 review R3-001 WARNING): database CHECK constraint `warranty_until >= purchase_date` so concurrent PATCHes cannot store an inconsistent pair (application-only today); map its violation to 400 at `warrantyUntil`; also R2-001 explicit null check for `warrantyUntil` in the Prisma create mapping (`prisma-equipment-repository.ts:117`).
 - [x] T5 (`879847b`, `c4d247f`) `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
-- [ ] T5.1 Follow-up (slice 04 review): R3-002 (SUGGESTION) a URL `locationId` absent from the loaded locations must stay visible and clearable in the filter (or be dropped) — `EquipmentFilterBar.tsx:47-61`; R3-001 (WARNING) README runbook query to detect rows violating `equipment_warranty_after_purchase_check` before deploying the migration to a database with existing data (no production data exists yet; migration already applied locally, so it stays unchanged).
-- [ ] T6 `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
+- [x] T5.1 (`6dbf0d6`, `3b36a6a`) Follow-up (slice 04 review): R3-002 (SUGGESTION) a URL `locationId` absent from the loaded locations must stay visible and clearable in the filter (or be dropped) — `EquipmentFilterBar.tsx:47-61`; R3-001 (WARNING) README runbook query to detect rows violating `equipment_warranty_after_purchase_check` before deploying the migration to a database with existing data (no production data exists yet; migration already applied locally, so it stays unchanged).
+- [x] T6 (`04deb64`, `1e037b8`) `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
 - [ ] T7 `apps/web` locations list + create/edit form, tests.
 
 ## Routing
@@ -98,6 +98,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: slice 04 native review (T4.1 + T5, `--base-ref 9e6cbe9`): medium (`slice_budget_reached`), consent granted, reliability lens approved, acknowledged. Reviewed boundary: `d8a3c23`. Advisories → T5.1 (done together with T6 in slice 05).
 
+- 2026-11-01: T5.1 + T6 done (delegated writer). T5.1: unknown URL `locationId` stays applied and visible as "Ubicación desconocida" (clearable); README pre-migration query for warranty violations (0 rows live). T6: detail page (warranty status, retire with inline confirmation, not-found for invalid/missing ids), shared create/edit form controller, `sendJson`, `ApiError.issues`; Spanish messages via `z.config(z.locales.es())` plus a web-side mapping by field and issue code (API messages unchanged, shown only as "Detalle:" fallback); edit validates the full form then PATCHes only changed fields (blank optional → `null`); list filters preserved through router state. `1e037b8` +1427/−16, mostly tests (heuristic exceeded, accepted). RED → GREEN per suite, web 115. Playwright at 390px: duplicate code and warranty errors focus the field, create/edit/retire/not-found flows OK; parent reviewed the warranty-error screenshot. Parent spot check: tests shared 62, api 119, web 115. Note: native date inputs follow the browser locale (screenshots in en-US show mm/dd/yyyy).
+
 ## Next step
 
-T5.1 + T6 on `feat/equipment-catalog-05-web-forms`, then T5 on `feat/equipment-catalog-04-web-list` on `feat/equipment-catalog-03-equipment-api`.
+Slice 05 review (T5.1 + T6), then T7, then T5 on `feat/equipment-catalog-04-web-list` on `feat/equipment-catalog-03-equipment-api`.
