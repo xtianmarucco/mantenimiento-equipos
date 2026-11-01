@@ -3,14 +3,16 @@ import { defineConfig } from 'vitest/config';
 import { requireTestDatabaseUrl } from './src/test/integration/test-database-url.js';
 import { resolveSharedFromSource } from './vitest.config.js';
 
-// Checked while loading the config so a missing or non-test DATABASE_URL fails the run with a
-// readable message before any test starts (never a silent skip).
+// The authoritative DATABASE_URL check: it runs while loading the config, so a missing or non-test
+// URL fails the run with a readable message before anything else (never a silent skip). The same
+// check in the global setup and in `createTestPrismaClient` is a defensive repeat for code that
+// runs outside this config; keep this one.
 requireTestDatabaseUrl();
 
 /**
  * Integration tests (`*.integration.test.ts`) against a real PostgreSQL database. Run with
  * `pnpm test:integration`; `DATABASE_URL` must point at a disposable database whose name ends in
- * `_test`. The global setup fails the run when it is missing and applies the migrations.
+ * `_test`. The global setup applies the migrations.
  */
 export default defineConfig({
   // Same module resolution as the unit suite (shared package from source).

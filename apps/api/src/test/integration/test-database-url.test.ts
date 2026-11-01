@@ -19,6 +19,17 @@ describe('requireTestDatabaseUrl', () => {
     ).toThrow(/Refusing to run the integration tests against database "mantenimiento"/);
   });
 
+  it.each(['dbname', 'database', 'db'])(
+    'refuses a %s query parameter, which a driver may use instead of the path',
+    (parameter) => {
+      const url = `postgresql://ci:secret@localhost:5432/mantenimiento_test?${parameter}=mantenimiento`;
+
+      expect(() => requireTestDatabaseUrl({ DATABASE_URL: url })).toThrow(
+        new RegExp(`must name the database only in its path, not with "${parameter}="`),
+      );
+    },
+  );
+
   it('rejects a value that is not a URL', () => {
     expect(() => requireTestDatabaseUrl({ DATABASE_URL: 'not a url' })).toThrow(/not a valid/);
   });

@@ -7,8 +7,10 @@ const apiRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const prismaBin = fileURLToPath(new URL('../../../node_modules/.bin/prisma', import.meta.url));
 
 /**
- * Vitest global setup for `vitest.integration.config.ts`: fails the run when `DATABASE_URL` is
- * missing (never skips silently), then applies the committed migrations to the test database.
+ * Vitest global setup for `vitest.integration.config.ts`: applies the committed migrations to the
+ * test database. The config already rejected a missing or non-test `DATABASE_URL` while loading;
+ * the check here is a defensive repeat so `prisma migrate deploy` never runs against another
+ * database if this setup is reused elsewhere.
  */
 export default function setup(): void {
   const databaseUrl = requireTestDatabaseUrl();

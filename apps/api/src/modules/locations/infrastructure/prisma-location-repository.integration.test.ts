@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { Prisma } from '../../../generated/prisma/client.js';
 import {
   createTestPrismaClient,
   truncateAllTables,
@@ -26,7 +27,13 @@ describe('PrismaLocationRepository errors', () => {
     const stored = await repository.create({ name: 'Centro', kind: 'OWN_STORE' });
 
     // `name` is VARCHAR(120): the database rejects the value, which must not read as "not found".
-    await expect(repository.update(stored.id, { name: 'x'.repeat(121) })).rejects.toThrow();
+    // P2000: "value too long for the column", rethrown as is (not mapped to `undefined`).
+    const error: unknown = await repository.update(stored.id, { name: 'x'.repeat(121) }).then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+    expect(error).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+    expect(error).toMatchObject({ code: 'P2000' });
     await expect(repository.findById(stored.id)).resolves.toMatchObject({ name: 'Centro' });
   });
 });

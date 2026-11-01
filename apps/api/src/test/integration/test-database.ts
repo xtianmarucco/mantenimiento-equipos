@@ -2,7 +2,10 @@ import type { PrismaClient } from '../../generated/prisma/client.js';
 import { createPrismaClient } from '../../shared/infrastructure/prisma.js';
 import { requireTestDatabaseUrl } from './test-database-url.js';
 
-/** A Prisma client for the integration test database (`DATABASE_URL`, name ending in `_test`). */
+/**
+ * A Prisma client for the integration test database (`DATABASE_URL`, name ending in `_test`).
+ * Re-checks the URL defensively; `vitest.integration.config.ts` holds the check that fires first.
+ */
 export function createTestPrismaClient(): PrismaClient {
   return createPrismaClient(requireTestDatabaseUrl());
 }

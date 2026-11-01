@@ -11,7 +11,13 @@ export interface InMemoryLocationRepositoryOptions {
   now?: () => Date;
 }
 
-/** ICU Spanish at its default (tertiary) strength, as the `es_natural` column collation. */
+/**
+ * ICU Spanish at its default (tertiary) strength, as the `es_natural` column collation. Two ICU
+ * builds are coupled here: this uses Node's bundled ICU (78.3 on Node 26), the database uses the
+ * postgres image's icu-libs (78.1 in `postgres:18.6-alpine3.24`). Unit tests only check Node
+ * against itself; the integration contract suite is what catches a disagreement, so rerun it when
+ * either Node or the image changes (README "Collation version").
+ */
 const spanish = new Intl.Collator('es', { usage: 'sort', sensitivity: 'variant' });
 
 /**
