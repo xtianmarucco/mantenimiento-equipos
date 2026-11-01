@@ -3,6 +3,8 @@ import { STATUS_CODES } from 'node:http';
 import type { ErrorResponse } from '@mantenimiento/shared';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 
+import { ConflictError } from '../domain/conflict-error.js';
+import { DomainValidationError } from '../domain/domain-validation-error.js';
 import { NotFoundError } from '../domain/not-found-error.js';
 import { RequestValidationError } from './request-validation.js';
 
@@ -69,9 +71,21 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, next)
     return;
   }
 
+  if (err instanceof DomainValidationError) {
+    const body: ErrorResponse = { error: { message: err.message, issues: [...err.issues] } };
+    res.status(400).json(body);
+    return;
+  }
+
   if (err instanceof NotFoundError) {
     const body: ErrorResponse = { error: { message: err.message } };
     res.status(404).json(body);
+    return;
+  }
+
+  if (err instanceof ConflictError) {
+    const body: ErrorResponse = { error: { message: err.message } };
+    res.status(409).json(body);
     return;
   }
 

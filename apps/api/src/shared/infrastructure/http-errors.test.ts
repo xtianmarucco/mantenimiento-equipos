@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { z } from 'zod';
 
+import { ConflictError } from '../domain/conflict-error.js';
+import { DomainValidationError } from '../domain/domain-validation-error.js';
 import { NotFoundError } from '../domain/not-found-error.js';
 import { errorHandler, notFoundHandler } from './http-errors.js';
 import { parseRequest } from './request-validation.js';
@@ -33,6 +35,16 @@ function createFailingApp(): Express {
 
   app.get('/missing-record', () => {
     throw new NotFoundError('Widget 42 not found');
+  });
+
+  app.get('/conflict', () => {
+    throw new ConflictError('Widget code W-1 is already in use');
+  });
+
+  app.get('/broken-rule', () => {
+    throw new DomainValidationError('Shelf 9 not found', [
+      { path: 'shelfId', message: 'Shelf does not exist' },
+    ]);
   });
 
   app.get('/invalid-query', (req) => {
@@ -108,6 +120,31 @@ describe('errorHandler', () => {
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: { message: 'Widget 42 not found' } });
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('maps a ConflictError to a JSON 409 with its message, without logging', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const response = await request(createFailingApp()).get('/conflict');
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: { message: 'Widget code W-1 is already in use' } });
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('maps a DomainValidationError to a JSON 400 with its issues, without logging', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const response = await request(createFailingApp()).get('/broken-rule');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        message: 'Shelf 9 not found',
+        issues: [{ path: 'shelfId', message: 'Shelf does not exist' }],
+      },
+    });
     expect(consoleError).not.toHaveBeenCalled();
   });
 
