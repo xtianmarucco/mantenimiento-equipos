@@ -7,6 +7,8 @@
 // alphabetical order), created and applied in migration `20261101200000_spanish_name_collation`.
 // Prisma cannot express column collations and ignores them when diffing, so `migrate dev` does
 // not revert it; a new name column that must sort in Spanish needs the same `COLLATE` by hand.
+// The collation version follows the image's ICU: see README "Collation version" before changing
+// the postgres image tag.
 
 generator client {
   provider            = "prisma-client"

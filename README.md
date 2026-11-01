@@ -103,6 +103,26 @@ depend on the image's libc: accents and case do not push a name to the end ("Ál
 "Alameda", lowercase interleaves with uppercase) and "ñ" follows "n". The in-memory adapter
 mirrors it with `Intl.Collator('es')`, and the contract suite fails if the two disagree.
 
+### Collation version
+
+`es_natural` sorts with the ICU library inside the PostgreSQL image (icu-libs 78.1 in
+`postgres:18.6-alpine3.24`), and PostgreSQL records the collation version when the migration
+creates it. The image tag pins the PostgreSQL minor and the Alpine release, which fixes the ICU
+major; an Alpine security rebuild under the same tag can still ship a patched icu-libs, so the
+tag is not a byte-for-byte pin. When you change the tag, or PostgreSQL logs a "collation version
+mismatch" warning, check the database:
+
+```sql
+SELECT collname, collversion, pg_collation_actual_version(oid)
+FROM pg_collation WHERE collname = 'es_natural';
+```
+
+If the two versions differ, sort order may have changed: rebuild every index that uses the
+collation (`REINDEX INDEX ...`, or `REINDEX DATABASE` when unsure), then record the new version
+with `ALTER COLLATION es_natural REFRESH VERSION;`. Today no index uses `es_natural`, so only the
+order of lists can change; also rerun `pnpm test:integration`, since the in-memory adapter
+follows Node's bundled ICU and must keep agreeing with the image's.
+
 Database: models live in `prisma/schema.prisma` (tables and columns in snake_case), migrations
 in `prisma/migrations` and the development seed in `prisma/seed.ts` (two own stores, two
 third-party kiosks and equipment in every status). The `db:*` scripts need `DATABASE_URL`; with
@@ -134,12 +154,12 @@ pnpm --filter @mantenimiento/shared test
 `docker-compose.yml` runs the whole stack locally. Images are built from the repository root
 (`apps/api/Dockerfile`, `apps/web/Dockerfile`).
 
-| Service   | Image                                  | Port                                         |
-| --------- | -------------------------------------- | -------------------------------------------- |
-| `db`      | `postgres:18-alpine`, volume `db-data` | `127.0.0.1:${DB_PORT:-5432}`                 |
-| `migrate` | `apps/api/Dockerfile` target `migrate` | none; runs `prisma migrate deploy` and exits |
-| `api`     | Node 26 Alpine, non-root               | `3000`, internal only                        |
-| `web`     | `nginx-unprivileged`, serves the PWA   | `${WEB_PORT:-8080}`, proxies `/api/` to api  |
+| Service   | Image                                        | Port                                         |
+| --------- | -------------------------------------------- | -------------------------------------------- |
+| `db`      | `postgres:18.6-alpine3.24`, volume `db-data` | `127.0.0.1:${DB_PORT:-5432}`                 |
+| `migrate` | `apps/api/Dockerfile` target `migrate`       | none; runs `prisma migrate deploy` and exits |
+| `api`     | Node 26 Alpine, non-root                     | `3000`, internal only                        |
+| `web`     | `nginx-unprivileged`, serves the PWA         | `${WEB_PORT:-8080}`, proxies `/api/` to api  |
 
 ```sh
 cp .env.example .env   # then set a real POSTGRES_PASSWORD (and the same one in DATABASE_URL)
@@ -179,7 +199,7 @@ A newer run on the same branch or pull request cancels the older one.
 | Job           | What it does                                                                                                                                                                                                                                                                                                                            |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `checks`      | `pnpm install --frozen-lockfile`, then `lint`, `typecheck`, `test`, `build` and `format:check` on Node from `.nvmrc`                                                                                                                                                                                                                    |
-| `integration` | Starts a `postgres:18-alpine` service container with throwaway credentials and runs `pnpm test:integration` (migrations, then the integration suites)                                                                                                                                                                                   |
+| `integration` | Starts a `postgres:18.6-alpine3.24` service container with throwaway credentials and runs `pnpm test:integration` (migrations, then the integration suites)                                                                                                                                                                             |
 | `docker`      | After `checks` passes, builds the `api`, `migrate` and `web` images (not pushed, layers cached in the GitHub Actions cache), then starts the compose stack with throwaway credentials (migrations run first), waits for every service to be healthy, runs the seed, requests `/api/health` and `/` through nginx, and removes the stack |
 
 Run the same checks locally before pushing:
