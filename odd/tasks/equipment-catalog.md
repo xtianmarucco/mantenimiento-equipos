@@ -35,8 +35,9 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 ## Tasks
 
-- [ ] T1 `packages/shared`: zod schemas + types for Location and Equipment (enums, create, update, response, list query) with unit tests.
-- [ ] T2 `apps/api` persistence: Prisma models + first migration + seed; compose/api image runs `prisma migrate deploy` on start; README.
+- [x] T1 (`72cd417`) `packages/shared`: zod schemas + types for Location and Equipment (enums, create, update, response, list query) with unit tests.
+- [x] T2 (`64e3ab0`, `d85b5ed`) `apps/api` persistence: Prisma models + first migration + seed; a one-shot compose `migrate` service runs `prisma migrate deploy` before the api starts; README.
+- [ ] T2.1 Follow-up (slice 01 review, non-blocking): document and test the phone length boundary (`packages/shared/src/location.ts:16-20`, WARNING x2); make the seed restore seeded rows to their canonical values on re-run (`apps/api/prisma/seed.ts:125-136`, WARNING); add an enum parity test between shared and Prisma enums (`schema.prisma:4`, SUGGESTION); clarify input type naming (`packages/shared/src/equipment.ts:82-92`, SUGGESTION).
 - [ ] T3 `apps/api` locations module: domain, use cases, Prisma repository, router (`/api/locations`), tests with in-memory repository and HTTP tests.
 - [ ] T4 `apps/api` equipment module: domain, use cases (list with filters, get, create, update, retire), Prisma repository, router (`/api/equipment`), 409 on duplicate code, tests.
 - [ ] T5 `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
@@ -63,6 +64,9 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: design agreed with the user; feature document created on `feat/equipment-catalog`.
 
+- 2026-11-01: T1 + T2 done (delegated writer). T1 RED 51 failed / 3 passed, GREEN 54/54 (code regex `^[A-Z]{2,4}-\d{4}$`, trimmed + uppercased). T2: tables `locations`/`equipment`, unique `code`, indexes on `location_id`/`status`, FK `ON DELETE RESTRICT`, idempotent seed (4 locations, 6 equipment). Deviation accepted: migrations run in a one-shot `migrate` compose service (build-stage image) instead of the api runtime image, which would grow from 89 MB to ~324 MB with the Prisma CLI. Parent fix `d85b5ed`: api typecheck now includes `prisma/` (seed). Checks: pnpm install/lint/typecheck/test/build/format:check exit 0; compose up on fresh volume applies migration; seed counts verified; actionlint clean. Parent spot check: typecheck, lint, format, tests (shared 54, api 15, web 16) passed. Authored: +560 (T1, 370 tests), ~360 (T2, migration SQL excluded).
+- 2026-11-01: slice 01 native review (`--base-ref 49c58c9`): high (shell in `ci.yml`), consent granted, 4 lenses approved, acknowledged. Reviewed boundary: `d85b5ed`. Non-blocking advisories → T2.1. Pending for T4: an update with only one date must validate the warranty rule against the stored record.
+
 ## Next step
 
-T1 on `feat/equipment-catalog-01-persistence`.
+T2.1 (small follow-up on slice 01), then T3 on `feat/equipment-catalog-02-locations-api`.
