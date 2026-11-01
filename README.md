@@ -43,6 +43,8 @@ define them.
 | `pnpm build`        | Build every package                           |
 | `pnpm format`       | Format all files with Prettier                |
 | `pnpm format:check` | Check formatting without writing (used in CI) |
+| `pnpm docker:up`    | Build and start the Docker stack (detached)   |
+| `pnpm docker:down`  | Stop the Docker stack (keeps the database)    |
 
 ## API (`apps/api`)
 
@@ -76,4 +78,54 @@ Run a script in one package with a filter, for example:
 
 ```sh
 pnpm --filter @mantenimiento/shared test
+```
+
+## Docker
+
+`docker-compose.yml` runs the whole stack locally. Images are built from the repository root
+(`apps/api/Dockerfile`, `apps/web/Dockerfile`).
+
+| Service | Image                                  | Port                                        |
+| ------- | -------------------------------------- | ------------------------------------------- |
+| `db`    | `postgres:18-alpine`, volume `db-data` | `127.0.0.1:${DB_PORT:-5432}`                |
+| `api`   | Node 26 Alpine, non-root               | `3000`, internal only                       |
+| `web`   | `nginx-unprivileged`, serves the PWA   | `${WEB_PORT:-8080}`, proxies `/api/` to api |
+
+```sh
+cp .env.example .env   # then set a real POSTGRES_PASSWORD (and the same one in DATABASE_URL)
+pnpm docker:up         # docker compose up --build -d
+curl http://localhost:8080/api/health
+pnpm docker:down       # add -v (docker compose down -v) to also delete the database volume
+```
+
+Variables (`.env`, read by Compose; never commit it):
+
+| Variable                                            | Purpose                                                       |
+| --------------------------------------------------- | ------------------------------------------------------------- |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Database credentials and name created on first start          |
+| `DATABASE_URL`                                      | API connection string; host is the service name `db`          |
+| `WEB_PORT`                                          | Host port for the web app (default `8080`)                    |
+| `DB_PORT`                                           | Host port for PostgreSQL, bound to localhost (default `5432`) |
+
+Every service has a health check (`pg_isready`, `GET /api/health`, the nginx root); `api` waits
+for a healthy `db` and `web` for a healthy `api`. nginx sends `no-cache` for `index.html`, the
+service worker and the manifest, and caches the content-hashed files under `/assets/` for a year.
+The security headers live in `apps/web/nginx/security-headers.conf`; every nginx `location` that
+adds its own header must include that file again, because nginx then stops inheriting them.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request, with read-only repository access.
+Actions are pinned to commit SHAs, and checkout does not keep the token in the git config.
+A newer run on the same branch or pull request cancels the older one.
+
+| Job      | What it does                                                                                                                                                                                                                                                                           |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `checks` | `pnpm install --frozen-lockfile`, then `lint`, `typecheck`, `test`, `build` and `format:check` on Node from `.nvmrc`                                                                                                                                                                   |
+| `docker` | After `checks` passes, builds the `api` and `web` images (not pushed, layers cached in the GitHub Actions cache), then starts the compose stack with throwaway credentials, waits for every service to be healthy, requests `/api/health` and `/` through nginx, and removes the stack |
+
+Run the same checks locally before pushing:
+
+```sh
+pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm format:check
 ```

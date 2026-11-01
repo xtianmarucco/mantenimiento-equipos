@@ -42,8 +42,9 @@ Out of scope: domain models (equipment, events, loans), authentication, deployme
 - [x] T3.1 (`7619384`) Error handler follow-up (slice 02 review, non-blocking): honor `status`/`statusCode` from body-parser client errors (413/415/400) instead of mapping to 500, delegate to `next(err)` when `res.headersSent`, and test the generic 500 path (no internal message leak), JSON content-type on malformed JSON, and an oversized payload.
 - [x] T4 (`efe6ca6`) `apps/web`: Vite + React + TS + Tailwind 4 + PWA plugin, app shell showing API health, component test.
 - [x] T4.1 (`315d526`, `c3bbc89`) Follow-up (slice 03 review, non-blocking): api `toClientError` must only echo `err.message` when `expose === true` (default to a generic message otherwise); web `getJson` must wrap fetch rejections and JSON parse failures into `ApiError` as documented (let `AbortError` pass through); test the hook's abort-on-unmount behavior (signal passed to fetch, unmount aborts, no state update after abort).
-- [ ] T5 Docker: `apps/api/Dockerfile`, `apps/web/Dockerfile` (nginx), `docker-compose.yml`, `.env.example`.
-- [ ] T6 CI: `.github/workflows/ci.yml` (install, lint, typecheck, test, build, docker build).
+- [x] T5 (`a19a9db`, `7f3f6a3`) Docker: `apps/api/Dockerfile`, `apps/web/Dockerfile` (nginx), `docker-compose.yml`, `.env.example`.
+- [x] T6 (`f091893`) CI: `.github/workflows/ci.yml` (install, lint, typecheck, test, build, docker build).
+- [x] T6.1 (`8d2b96a`, `62eb22c`, `5f062b7`) Follow-up (slice 04 review, non-blocking advisories): R1-001 harden `ci.yml` steps (`ci.yml:21-55`, SUGGESTION); R2 dedupe web Dockerfile base stages (`apps/web/Dockerfile:6-15`, SUGGESTION) and nginx header blocks (`apps/web/nginx.conf:32-49`, WARNING); R3 CI docker job only builds, add a compose smoke test (`ci.yml:38-60`, WARNING) and review `pnpm deploy` optional deps (`apps/api/Dockerfile:33-42`, SUGGESTION); R4 PID 1 signal handling in api container (`apps/api/Dockerfile:57`, SUGGESTION). Compose does not run Prisma migrations yet (needed once models exist).
 
 ## Routing
 
@@ -80,6 +81,12 @@ Out of scope: domain models (equipment, events, loans), authentication, deployme
 
 - 2026-10-30: T4.1 done — `315d526` (api: echo message only when `expose === true`, else `http.STATUS_CODES` phrase) and `c3bbc89` (web: wrap fetch/JSON failures in `ApiError`, pass `AbortError` through; abort tests as regression guards). RED api 2 failed / web 2 failed; GREEN api 15, web 16. Parent spot check: shared 3, api 15, web 16 passed. Assess (`--base-ref efe6ca6`): medium, `under_budget` (152 lines) → pending in slice 04 review.
 
+- 2026-11-01: T5 + T6 done — `a19a9db` (Docker, +279/−1), `f091893` (CI, +76), `7f3f6a3` (`.env.example`, +6; created by the user because a permission deny rule blocks agents from `.env.example`). Test-first exception: infrastructure config, functional checks instead. `pnpm install --frozen-lockfile|lint|typecheck|test|build|format:check` exit 0; `actionlint` + YAML parse pass; `docker compose build` + `up -d --wait`: db/api/web healthy, `/api/health` via nginx → `{"status":"ok"}`, SPA fallback OK, api runs as uid 1000; `down -v` clean. Parent spot check `pnpm test`: shared 3, api 15, web 16 passed.
+- 2026-11-01: slice 04 native review (covers T4.1 + T5 + T6, `--base-ref efe6ca6`): high (`high_risk`, shell in `ci.yml`), consent granted, 4 lenses approved, acknowledged (`review-30d755a7b07de090`). Reviewed boundary: `7f3f6a3`. Seven non-blocking advisories → T6.1.
+
+- 2026-11-01: T6.1 done (delegated writer) — `8d2b96a` (CI: actions pinned to SHAs, `persist-credentials: false`, single docker job with compose smoke test; +65/−20), `62eb22c` (nginx security headers in shared `apps/web/nginx/security-headers.conf`, `nginx -t` at build; +22/−10), `5f062b7` (api image verifies the pruned bundle loads the Prisma client; `--no-optional` kept: 92 vs 225 packages; +9/−2). R4 no change: existing SIGTERM handler stops api in 0.25s, no child processes. R2 web base duplication: comments only (shared base needs bake/base image). Checks: pnpm install/lint/typecheck/test/build/format:check exit 0, actionlint clean, compose up healthy, headers present once on all routes. Parent spot check: actionlint clean. CI compose smoke job not yet run on GitHub.
+- 2026-11-01: T6.1 native review (`--base-ref 7f3f6a3`): high (nginx security headers, shell in `ci.yml`), consent granted, 4 lenses approved, acknowledged (`review-d5ad78e47c97eefd`). Reviewed boundary: `5f062b7`. Non-blocking advisories (not scheduled): R2-001 task log stale (fixed by this entry), R2-002 doc, R2-003 `ci.yml:49-52`, R2-004 `apps/api/Dockerfile:38-41`, R3-001 `ci.yml:91-94`, R3-002 `apps/api/Dockerfile:56-58`.
+
 ## Next step
 
-T5 + T6 on `feat/monorepo-scaffold-04-delivery`.
+Push the slice branches and open the chained PRs (user opens PRs on the web); confirm the CI compose smoke job passes on GitHub.

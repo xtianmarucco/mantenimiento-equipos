@@ -12,7 +12,9 @@
     "test": "pnpm -r --if-present test",
     "build": "pnpm -r --if-present build",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
