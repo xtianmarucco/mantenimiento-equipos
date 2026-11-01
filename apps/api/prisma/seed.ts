@@ -1,7 +1,9 @@
 // Development seed: two own stores, two third-party kiosks and equipment in every status.
 // Run with `pnpm --filter @mantenimiento/api db:seed` (Prisma runs the `migrations.seed` command
 // from `prisma.config.ts`). Idempotent: locations are upserted by a fixed id and equipment by
-// code, so running it again restores the sample values instead of duplicating rows.
+// code, so running it again restores the sample values instead of duplicating rows. Every column
+// is listed (absent values as explicit `null`), so the upsert `update` also clears edits made to
+// fields a sample leaves empty.
 import 'dotenv/config';
 
 import { parseEnv } from '../src/config/env.js';
@@ -15,7 +17,15 @@ const LOCATION_IDS = {
   kioscoEstacion: '6f1c1d2e-0a51-4b8e-9a4d-1c2b3a4d5e04',
 } as const;
 
-const locations: (Prisma.LocationCreateInput & { id: string })[] = [
+// `Required` makes every writable column mandatory, so a sample cannot silently omit one.
+type SeedLocation = Required<
+  Omit<Prisma.LocationUncheckedCreateInput, 'createdAt' | 'updatedAt' | 'equipment'>
+>;
+type SeedEquipment = Required<
+  Omit<Prisma.EquipmentUncheckedCreateInput, 'id' | 'createdAt' | 'updatedAt'>
+>;
+
+const locations: SeedLocation[] = [
   {
     id: LOCATION_IDS.centro,
     name: 'Heladería Centro',
@@ -29,6 +39,8 @@ const locations: (Prisma.LocationCreateInput & { id: string })[] = [
     name: 'Heladería Norte',
     kind: 'OWN_STORE',
     address: 'Belgrano 450',
+    contactName: null,
+    phone: null,
   },
   {
     id: LOCATION_IDS.kioscoPlaza,
@@ -42,6 +54,7 @@ const locations: (Prisma.LocationCreateInput & { id: string })[] = [
     id: LOCATION_IDS.kioscoEstacion,
     name: 'Kiosco Estación',
     kind: 'THIRD_PARTY',
+    address: null,
     contactName: 'Lucía Díaz',
     phone: '011 4444-0303',
   },
@@ -49,7 +62,7 @@ const locations: (Prisma.LocationCreateInput & { id: string })[] = [
 
 const date = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
 
-const equipment: Prisma.EquipmentUncheckedCreateInput[] = [
+const equipment: SeedEquipment[] = [
   {
     code: 'EQ-0001',
     name: 'Vitrina heladera 12 gustos',
@@ -61,6 +74,7 @@ const equipment: Prisma.EquipmentUncheckedCreateInput[] = [
     warrantyUntil: date('2025-09-01'),
     status: 'OPERATIONAL',
     locationId: LOCATION_IDS.centro,
+    notes: null,
   },
   {
     code: 'EQ-0002',
@@ -68,6 +82,7 @@ const equipment: Prisma.EquipmentUncheckedCreateInput[] = [
     type: 'ICE_CREAM_MACHINE',
     brand: 'Carpigiani',
     model: 'Soft 191',
+    serialNumber: null,
     purchaseDate: date('2024-02-10'),
     warrantyUntil: date('2027-02-10'),
     status: 'IN_REPAIR',
@@ -80,9 +95,12 @@ const equipment: Prisma.EquipmentUncheckedCreateInput[] = [
     type: 'REFRIGERATOR',
     brand: 'Gafa',
     model: 'HGF-350',
+    serialNumber: null,
     purchaseDate: date('2022-11-20'),
+    warrantyUntil: null,
     status: 'OPERATIONAL',
     locationId: LOCATION_IDS.norte,
+    notes: null,
   },
   {
     code: 'EQ-0004',
@@ -92,6 +110,7 @@ const equipment: Prisma.EquipmentUncheckedCreateInput[] = [
     model: 'FH-300',
     serialNumber: 'IN-FH300-7781',
     purchaseDate: date('2021-05-03'),
+    warrantyUntil: null,
     status: 'OUT_OF_SERVICE',
     locationId: LOCATION_IDS.norte,
     notes: 'Does not hold temperature; awaiting a replacement decision.',
@@ -102,6 +121,7 @@ const equipment: Prisma.EquipmentUncheckedCreateInput[] = [
     type: 'FREEZER',
     brand: 'Inelro',
     model: 'FIH-350',
+    serialNumber: null,
     purchaseDate: date('2024-10-15'),
     warrantyUntil: date('2026-10-15'),
     status: 'OPERATIONAL',
@@ -114,9 +134,12 @@ const equipment: Prisma.EquipmentUncheckedCreateInput[] = [
     type: 'OTHER',
     brand: 'Moulinex',
     model: 'BT-600',
+    serialNumber: null,
     purchaseDate: date('2019-01-08'),
+    warrantyUntil: null,
     status: 'RETIRED',
     locationId: LOCATION_IDS.kioscoEstacion,
+    notes: null,
   },
 ];
 
