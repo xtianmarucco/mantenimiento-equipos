@@ -47,6 +47,7 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T5 (`879847b`, `c4d247f`) `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
 - [x] T5.1 (`6dbf0d6`, `3b36a6a`) Follow-up (slice 04 review): R3-002 (SUGGESTION) a URL `locationId` absent from the loaded locations must stay visible and clearable in the filter (or be dropped) — `EquipmentFilterBar.tsx:47-61`; R3-001 (WARNING) README runbook query to detect rows violating `equipment_warranty_after_purchase_check` before deploying the migration to a database with existing data (no production data exists yet; migration already applied locally, so it stays unchanged).
 - [x] T6 (`04deb64`, `1e037b8`) `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
+- [ ] T6.1 Follow-up (slice 05 review): R3-001 (WARNING) `apps/web/src/features/equipment/EquipmentForm.tsx:146-154`; R3-002 (SUGGESTION) `apps/web/src/features/equipment/EquipmentDetailView.tsx:140-149` — details in the review artifacts.
 - [ ] T7 `apps/web` locations list + create/edit form, tests.
 
 ## Routing
@@ -100,6 +101,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: T5.1 + T6 done (delegated writer). T5.1: unknown URL `locationId` stays applied and visible as "Ubicación desconocida" (clearable); README pre-migration query for warranty violations (0 rows live). T6: detail page (warranty status, retire with inline confirmation, not-found for invalid/missing ids), shared create/edit form controller, `sendJson`, `ApiError.issues`; Spanish messages via `z.config(z.locales.es())` plus a web-side mapping by field and issue code (API messages unchanged, shown only as "Detalle:" fallback); edit validates the full form then PATCHes only changed fields (blank optional → `null`); list filters preserved through router state. `1e037b8` +1427/−16, mostly tests (heuristic exceeded, accepted). RED → GREEN per suite, web 115. Playwright at 390px: duplicate code and warranty errors focus the field, create/edit/retire/not-found flows OK; parent reviewed the warranty-error screenshot. Parent spot check: tests shared 62, api 119, web 115. Note: native date inputs follow the browser locale (screenshots in en-US show mm/dd/yyyy).
 
+- 2026-11-01: slice 05 native review (T5.1 + T6, `--base-ref 01be20f`): medium (`slice_budget_reached`), consent granted, reliability lens approved, acknowledged. Reviewed boundary: `244395b`. Advisories → T6.1.
+
 ## Next step
 
-Slice 05 review (T5.1 + T6), then T7, then T5 on `feat/equipment-catalog-04-web-list` on `feat/equipment-catalog-03-equipment-api`.
+T6.1, then T7 on `feat/equipment-catalog-05-web-forms`; then push branches and open the chained PRs., then T5 on `feat/equipment-catalog-04-web-list` on `feat/equipment-catalog-03-equipment-api`.
