@@ -38,7 +38,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T1 (`72cd417`) `packages/shared`: zod schemas + types for Location and Equipment (enums, create, update, response, list query) with unit tests.
 - [x] T2 (`64e3ab0`, `d85b5ed`) `apps/api` persistence: Prisma models + first migration + seed; a one-shot compose `migrate` service runs `prisma migrate deploy` before the api starts; README.
 - [x] T2.1 (`dead59e`, `b7f20d9`, `d5d70ef`, `90f3208`, `6b5fdde`) Follow-up (slice 01 review, non-blocking): document and test the phone length boundary (`packages/shared/src/location.ts:16-20`, WARNING x2); make the seed restore seeded rows to their canonical values on re-run (`apps/api/prisma/seed.ts:125-136`, WARNING); add an enum parity test between shared and Prisma enums (`schema.prisma:4`, SUGGESTION); clarify input type naming (`packages/shared/src/equipment.ts:82-92`, SUGGESTION).
-- [ ] T3 `apps/api` locations module: domain, use cases, Prisma repository, router (`/api/locations`), tests with in-memory repository and HTTP tests.
+- [x] T3 (`6c5f0ce`) `apps/api` locations module: domain, use cases, Prisma repository, router (`/api/locations`), tests with in-memory repository and HTTP tests.
+- [ ] T3.1 Follow-up (slice 02 review, non-blocking): integration tests for `PrismaLocationRepository` against a real Postgres (`prisma-location-repository.ts:54-69`, WARNING); in-memory repository sort must match Prisma (name, then id) (`in-memory-location-repository.ts:14-19`, WARNING + SUGGESTION); clarify `packages/shared/src/location.ts:41` per review (WARNING).
 - [ ] T4 `apps/api` equipment module: domain, use cases (list with filters, get, create, update, retire), Prisma repository, router (`/api/equipment`), 409 on duplicate code, tests.
 - [ ] T5 `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
 - [ ] T6 `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
@@ -69,6 +70,9 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: T2.1 done (delegated writer). Phone: trim then 6–20 chars (incl. `+`) matching `VARCHAR(20)`; RED 1 failed/58 passed → GREEN 59/59. Enum parity test (passed first run, regression guard, no RED). Seed restores canonical values on re-run (explicit `null`s, `Required<Omit<...UncheckedCreateInput>>` types) — verified live: edited rows restored, counts 4/6. `*Input` = `z.input`, bare names = parsed values. `schema.prisma` comment-only (`migrate diff`: empty migration). Checks: lint/typecheck/test/build/format:check pass; parent spot check tests shared 59, api 18, web 16. Assess (`--base-ref d85b5ed`): medium, `under_budget` → pending in the slice 02 review.
 
+- 2026-11-01: T3 done — `6c5f0ce` (delegated writer, +901/−10, ~440 tests). Locations module (domain port, use cases, Prisma + in-memory repositories, router `/api/locations` GET/GET:id/POST/PATCH, no DELETE). `createApp(dependencies)` DI; `server.ts` builds Prisma repo and disconnects on shutdown. Errors: `RequestValidationError` → 400 with issues, `NotFoundError` → 404, unexpected `ZodError` → 500; error contract `errorResponseSchema` moved to `packages/shared/src/http-error.ts`. RED shared 3 failed / api 3 suites failed → GREEN shared 62, api 40. Live: seeded list sorted, POST 201, PATCH 200, unknown uuid 404 (GET and PATCH, `P2025` mapping), bad uuid / empty PATCH 400. Parent spot check: tests shared 62, api 40, web 16.
+- 2026-11-01: slice 02 native review (covers T2.1 + T3, `--base-ref d85b5ed`): high (update path), consent granted, 4 lenses approved, acknowledged. Reviewed boundary: `6c5f0ce`. Non-blocking advisories → T3.1 (R2-003 stale task log fixed by this entry).
+
 ## Next step
 
-T3 on `feat/equipment-catalog-02-locations-api`.
+T3.1 on `feat/equipment-catalog-02-locations-api`, then T4 on `feat/equipment-catalog-03-equipment-api`.
