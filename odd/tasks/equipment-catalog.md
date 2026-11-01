@@ -40,6 +40,7 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T2.1 (`dead59e`, `b7f20d9`, `d5d70ef`, `90f3208`, `6b5fdde`) Follow-up (slice 01 review, non-blocking): document and test the phone length boundary (`packages/shared/src/location.ts:16-20`, WARNING x2); make the seed restore seeded rows to their canonical values on re-run (`apps/api/prisma/seed.ts:125-136`, WARNING); add an enum parity test between shared and Prisma enums (`schema.prisma:4`, SUGGESTION); clarify input type naming (`packages/shared/src/equipment.ts:82-92`, SUGGESTION).
 - [x] T3 (`6c5f0ce`) `apps/api` locations module: domain, use cases, Prisma repository, router (`/api/locations`), tests with in-memory repository and HTTP tests.
 - [x] T3.1 (`86e00b4`, `c2d6a3e`, `2b720e4`, `4adce0f`, `1694be7`) Follow-up (slice 02 review, non-blocking): integration tests for `PrismaLocationRepository` against a real Postgres (`prisma-location-repository.ts:54-69`, WARNING); in-memory repository sort must match Prisma (name, then id) (`in-memory-location-repository.ts:14-19`, WARNING + SUGGESTION); clarify `packages/shared/src/location.ts:41` per review (WARNING).
+- [ ] T3.2 Spanish alphabetical sort (user decision 2026-11-01): ICU `es` collation (case- and accent-insensitive ordering) on `locations.name` and `equipment.name` via migration; in-memory repository uses the same rule (`Intl.Collator('es')`), contract test updated.
 - [ ] T4 `apps/api` equipment module: domain, use cases (list with filters, get, create, update, retire), Prisma repository, router (`/api/equipment`), 409 on duplicate code, tests.
 - [ ] T5 `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
 - [ ] T6 `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
@@ -78,4 +79,4 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 ## Next step
 
-Decide sort collation, then T4 on `feat/equipment-catalog-03-equipment-api`.
+T3.2, then slice 02 review, then T4 on `feat/equipment-catalog-03-equipment-api`.
