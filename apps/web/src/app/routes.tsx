@@ -1,6 +1,7 @@
 import { Navigate, type RouteObject } from 'react-router';
 
 import { EquipmentDetailPage } from '../features/equipment/EquipmentDetailPage';
+import { EquipmentCreatePage, EquipmentEditPage } from '../features/equipment/EquipmentFormPage';
 import { EquipmentListPage } from '../features/equipment/EquipmentListPage';
 import { AppLayout } from './AppLayout';
 import { PlaceholderPage } from './PlaceholderPage';
@@ -16,14 +17,9 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="/equipos" replace /> },
       { path: 'equipos', element: <EquipmentListPage /> },
-      // T6: equipment form.
-      {
-        path: 'equipos/nuevo',
-        element: (
-          <PlaceholderPage title="Nuevo equipo" message={COMING_SOON} backLink={BACK_TO_LIST} />
-        ),
-      },
+      { path: 'equipos/nuevo', element: <EquipmentCreatePage /> },
       { path: 'equipos/:id', element: <EquipmentDetailPage /> },
+      { path: 'equipos/:id/editar', element: <EquipmentEditPage /> },
       // T7: locations.
       {
         path: 'ubicaciones',
