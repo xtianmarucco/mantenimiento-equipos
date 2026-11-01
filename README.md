@@ -66,18 +66,40 @@ builds the Express app and `src/server.ts` starts it. Copy `apps/api/.env.exampl
 
 Health check: `GET /api/health` returns `{ "status": "ok" }`.
 
-| Endpoint                   | What it does                                      |
-| -------------------------- | ------------------------------------------------- |
-| `GET /api/locations`       | List locations, sorted by name                    |
-| `GET /api/locations/:id`   | One location                                      |
-| `POST /api/locations`      | Create a location (201)                           |
-| `PATCH /api/locations/:id` | Change some fields; `null` clears an optional one |
+| Endpoint                         | What it does                                                           |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| `GET /api/locations`             | List locations, sorted by name                                         |
+| `GET /api/locations/:id`         | One location                                                           |
+| `POST /api/locations`            | Create a location (201)                                                |
+| `PATCH /api/locations/:id`       | Change some fields; `null` clears an optional one                      |
+| `GET /api/equipment`             | List equipment, sorted by name; filters `status`, `locationId`, `type` |
+| `GET /api/equipment/:id`         | One piece of equipment (retired too)                                   |
+| `POST /api/equipment`            | Create equipment (201); `status` defaults to `OPERATIONAL`             |
+| `PATCH /api/equipment/:id`       | Change some fields; `null` clears an optional one                      |
+| `POST /api/equipment/:id/retire` | Set status `RETIRED`; idempotent, returns the item (200)               |
 
-Bodies and ids are validated with the `packages/shared` schemas. Errors are JSON
-`{ "error": { "message", "issues"? } }` (`errorResponseSchema`): 400 for an invalid body or id
-(`issues` lists each field path), 404 for an unknown id. Locations cannot be deleted (equipment
-references them). `createApp` takes its repositories as arguments: `server.ts` passes Prisma
-ones, tests pass in-memory ones, so tests never open a database connection.
+Bodies, ids and query strings are validated with the `packages/shared` schemas. Errors are JSON
+`{ "error": { "message", "issues"? } }` (`errorResponseSchema`): 400 for an invalid body, id or
+query (`issues` lists each field path), 404 for an unknown id, 409 for an equipment `code` already
+in use. Locations cannot be deleted (equipment references them). `createApp` takes its
+repositories as arguments: `server.ts` passes Prisma ones, tests pass in-memory ones, so tests
+never open a database connection.
+
+Equipment rules:
+
+- **Retired equipment is hidden by default.** `GET /api/equipment` without `status` leaves out
+  `RETIRED` items; `?status=RETIRED` lists only those. Filters combine with AND.
+- **No DELETE.** Retiring replaces it. `PATCH` may also set any `status`, `RETIRED` included, and
+  is the way to bring retired equipment back into service; `POST /:id/retire` is the explicit,
+  idempotent action (retiring twice answers 200 and does not bump `updatedAt`).
+- **`code`** is trimmed and uppercased before the format check (`eq-0042` → `EQ-0042`), so a
+  duplicate is detected after normalizing.
+- **`locationId`** must name an existing location: otherwise 400 with an issue at `locationId`,
+  also if the location disappears between the check and the write (foreign key).
+- **Warranty** cannot end before the purchase date. A `PATCH` that sends only one of the dates is
+  checked against the stored value of the other; the issue is reported at `warrantyUntil`.
+- `purchaseDate` and `warrantyUntil` are calendar dates (`YYYY-MM-DD`), timestamps are ISO 8601
+  UTC.
 
 Integration tests (`*.integration.test.ts`, `vitest.integration.config.ts`) run the Prisma
 repositories against a real PostgreSQL. `pnpm test` excludes them and needs no database. Each
@@ -97,11 +119,12 @@ pnpm test:integration
 docker compose down -v
 ```
 
-Location lists are ordered by name in Spanish alphabetical order, then by id. `locations.name` and
+Location and equipment lists are ordered by name in Spanish alphabetical order, then by id. `locations.name` and
 `equipment.name` use the ICU collation `es_natural` (created by a migration), so the order does not
 depend on the image's libc: accents and case do not push a name to the end ("Álamo" sits with
-"Alameda", lowercase interleaves with uppercase) and "ñ" follows "n". The in-memory adapter
-mirrors it with `Intl.Collator('es')`, and the contract suite fails if the two disagree.
+"Alameda", lowercase interleaves with uppercase) and "ñ" follows "n". The in-memory adapters
+mirror it with `Intl.Collator('es')` (`src/shared/infrastructure/spanish-name-order.ts`), and the
+contract suites fail if the two disagree.
 
 ### Collation version
 
