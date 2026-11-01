@@ -4,6 +4,8 @@
 ARG NODE_VERSION=26
 
 # --- base: Node + pnpm (corepack is not bundled with Node >= 25, so install it) ---
+# Same stage as in apps/web/Dockerfile: keep NODE_VERSION, COREPACK_VERSION and this stage
+# identical in both files.
 FROM node:${NODE_VERSION}-alpine AS base
 ARG COREPACK_VERSION=0.36.0
 ENV PNPM_HOME=/pnpm \
@@ -32,8 +34,10 @@ RUN pnpm --filter "@mantenimiento/api..." run build
 
 # Self-contained production bundle: prod-only node_modules with the shared package injected.
 # - --ignore-scripts: the postinstall needs the `prisma` CLI, a dev dependency.
-# - --no-optional: `prisma` is an optional peer of @prisma/client and would pull in the whole
-#   CLI (Studio, engines); the generated client only needs @prisma/client's runtime.
+# - --no-optional: pnpm records the resolved optional peer `prisma` as an optional dependency of
+#   @prisma/client, so without this flag the bundle gains the whole CLI (Studio, engines,
+#   PGlite): 225 instead of 92 packages, 324 MB instead of 89 MB. None of the dropped packages
+#   is a platform-specific binary; the runtime stage checks that the Prisma client still loads.
 # - dist is gitignored, so deploy does not pack it; copy the compiled output explicitly.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm --filter @mantenimiento/api deploy --prod --ignore-scripts --no-optional \
@@ -49,6 +53,9 @@ WORKDIR /app
 COPY --from=build --chown=node:node /prod/api/package.json ./
 COPY --from=build --chown=node:node /prod/api/node_modules ./node_modules
 COPY --from=build --chown=node:node /prod/api/dist ./dist
+# Fail the build if the pruned bundle cannot load the Prisma client and its pg adapter (the
+# server does not import them at startup yet). Creating a client opens no connection.
+RUN node -e "import('./dist/shared/infrastructure/prisma.js').then((m) => m.createPrismaClient('postgresql://check@127.0.0.1:5432/check'))"
 # The image's unprivileged `node` user, by numeric id so runtimes can verify it is non-root.
 USER 1000:1000
 EXPOSE 3000
