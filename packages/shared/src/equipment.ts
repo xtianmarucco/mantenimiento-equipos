@@ -79,6 +79,8 @@ export const createEquipmentSchema = z
   .object({ ...equipmentFields, status: equipmentStatusSchema.default('OPERATIONAL') })
   .superRefine(warrantyNotBeforePurchase);
 
+// Naming: `*Input` is the request body before parsing (`z.input`); the bare name is the parsed
+// value (`z.infer`). The same convention applies to the location types.
 export type CreateEquipmentInput = z.input<typeof createEquipmentSchema>;
 export type CreateEquipment = z.infer<typeof createEquipmentSchema>;
 
@@ -89,7 +91,8 @@ export const updateEquipmentSchema = z
   .refine(hasAtLeastOneField, 'Provide at least one field to update')
   .superRefine(warrantyNotBeforePurchase);
 
-export type UpdateEquipmentInput = z.infer<typeof updateEquipmentSchema>;
+export type UpdateEquipmentInput = z.input<typeof updateEquipmentSchema>;
+export type UpdateEquipment = z.infer<typeof updateEquipmentSchema>;
 
 /** An equipment item as returned by the API. Absent optional fields are `null`. */
 export const equipmentResponseSchema = z.object({

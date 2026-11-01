@@ -14,6 +14,7 @@ export {
   type EquipmentResponse,
   type EquipmentStatus,
   type EquipmentType,
+  type UpdateEquipment,
   type UpdateEquipmentInput,
 } from './equipment.js';
 export { healthResponseSchema, type HealthResponse } from './health.js';
@@ -22,8 +23,10 @@ export {
   locationKindSchema,
   locationResponseSchema,
   updateLocationSchema,
+  type CreateLocation,
   type CreateLocationInput,
   type LocationKind,
   type LocationResponse,
+  type UpdateLocation,
   type UpdateLocationInput,
 } from './location.js';

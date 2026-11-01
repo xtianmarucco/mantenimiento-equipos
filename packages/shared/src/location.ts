@@ -37,7 +37,8 @@ const locationFields = {
 /** Body of `POST /api/locations`. */
 export const createLocationSchema = z.object(locationFields);
 
-export type CreateLocationInput = z.infer<typeof createLocationSchema>;
+export type CreateLocationInput = z.input<typeof createLocationSchema>;
+export type CreateLocation = z.infer<typeof createLocationSchema>;
 
 /** Body of `PATCH /api/locations/:id`: any subset of the create fields, at least one. */
 export const updateLocationSchema = z
@@ -45,7 +46,8 @@ export const updateLocationSchema = z
   .partial()
   .refine(hasAtLeastOneField, 'Provide at least one field to update');
 
-export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
+export type UpdateLocationInput = z.input<typeof updateLocationSchema>;
+export type UpdateLocation = z.infer<typeof updateLocationSchema>;
 
 /** A location as returned by the API. Absent optional fields are `null`. */
 export const locationResponseSchema = z.object({
