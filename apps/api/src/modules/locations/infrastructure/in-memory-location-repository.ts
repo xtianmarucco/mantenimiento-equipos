@@ -11,11 +11,18 @@ export interface InMemoryLocationRepositoryOptions {
   now?: () => Date;
 }
 
-function byName(a: Location, b: Location): number {
-  if (a.name !== b.name) {
-    return a.name < b.name ? -1 : 1;
-  }
-  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+/**
+ * Compares by Unicode code point, the order PostgreSQL produces for the database collation on the
+ * reference image (see `LocationRepository.findAll`). UTF-8 byte order is code point order; plain
+ * `<` compares UTF-16 code units, which misplaces characters outside the Basic Multilingual Plane.
+ */
+function byCodePoint(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
+
+/** Same order as the Prisma adapter: name, then id. */
+function byNameThenId(a: Location, b: Location): number {
+  return byCodePoint(a.name, b.name) || byCodePoint(a.id, b.id);
 }
 
 /** Adapter: keeps locations in a Map. Used by tests and local experiments; nothing is persisted. */
@@ -31,7 +38,7 @@ export class InMemoryLocationRepository implements LocationRepository {
   }
 
   async findAll(): Promise<Location[]> {
-    return [...this.store.values()].sort(byName);
+    return [...this.store.values()].sort(byNameThenId);
   }
 
   async findById(id: string): Promise<Location | undefined> {
