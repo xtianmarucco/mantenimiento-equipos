@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import type { Location } from '../domain/location.js';
 import { LocationNotFoundError } from '../domain/location-not-found-error.js';
 import { InMemoryLocationRepository } from '../infrastructure/in-memory-location-repository.js';
-import { CreateLocation } from './create-location.js';
-import { GetLocation } from './get-location.js';
-import { ListLocations } from './list-locations.js';
-import { UpdateLocation } from './update-location.js';
+import { CreateLocationUseCase } from './create-location.js';
+import { GetLocationUseCase } from './get-location.js';
+import { ListLocationsUseCase } from './list-locations.js';
+import { UpdateLocationUseCase } from './update-location.js';
 
 const MISSING_ID = '00000000-0000-4000-8000-000000000000';
 
@@ -32,7 +32,7 @@ function steppingClock(start = '2026-11-01T12:00:00.000Z'): () => Date {
   };
 }
 
-describe('ListLocations', () => {
+describe('ListLocationsUseCase', () => {
   it('returns every location sorted by name', async () => {
     const repository = new InMemoryLocationRepository({
       locations: [
@@ -42,7 +42,7 @@ describe('ListLocations', () => {
       ],
     });
 
-    const result = await new ListLocations(repository).execute();
+    const result = await new ListLocationsUseCase(repository).execute();
 
     expect(result.map((item) => item.name)).toEqual([
       'Almacén Sur',
@@ -52,22 +52,22 @@ describe('ListLocations', () => {
   });
 
   it('returns an empty list when there are no locations', async () => {
-    const result = await new ListLocations(new InMemoryLocationRepository()).execute();
+    const result = await new ListLocationsUseCase(new InMemoryLocationRepository()).execute();
 
     expect(result).toEqual([]);
   });
 });
 
-describe('GetLocation', () => {
+describe('GetLocationUseCase', () => {
   it('returns the location with the given id', async () => {
     const stored = location({ id: '3b0c5f3e-0000-4000-8000-000000000001', name: 'Centro' });
     const repository = new InMemoryLocationRepository({ locations: [stored] });
 
-    await expect(new GetLocation(repository).execute(stored.id)).resolves.toEqual(stored);
+    await expect(new GetLocationUseCase(repository).execute(stored.id)).resolves.toEqual(stored);
   });
 
   it('throws LocationNotFoundError for an unknown id', async () => {
-    const getLocation = new GetLocation(new InMemoryLocationRepository());
+    const getLocation = new GetLocationUseCase(new InMemoryLocationRepository());
 
     await expect(getLocation.execute(MISSING_ID)).rejects.toBeInstanceOf(LocationNotFoundError);
     await expect(getLocation.execute(MISSING_ID)).rejects.toThrow(
@@ -76,11 +76,11 @@ describe('GetLocation', () => {
   });
 });
 
-describe('CreateLocation', () => {
+describe('CreateLocationUseCase', () => {
   it('stores a new location with an id, null optional fields and timestamps', async () => {
     const repository = new InMemoryLocationRepository({ now: steppingClock() });
 
-    const created = await new CreateLocation(repository).execute({
+    const created = await new CreateLocationUseCase(repository).execute({
       name: 'Kiosco Plaza',
       kind: 'THIRD_PARTY',
       phone: '+54 11 5555-0199',
@@ -100,7 +100,7 @@ describe('CreateLocation', () => {
   });
 });
 
-describe('UpdateLocation', () => {
+describe('UpdateLocationUseCase', () => {
   it('changes only the given fields, clears fields set to null and bumps updatedAt', async () => {
     const stored = location({
       id: '3b0c5f3e-0000-4000-8000-000000000001',
@@ -113,7 +113,7 @@ describe('UpdateLocation', () => {
       now: steppingClock(),
     });
 
-    const updated = await new UpdateLocation(repository).execute(stored.id, {
+    const updated = await new UpdateLocationUseCase(repository).execute(stored.id, {
       name: 'Heladería Centro',
       contactName: null,
     });
@@ -128,7 +128,7 @@ describe('UpdateLocation', () => {
   });
 
   it('throws LocationNotFoundError for an unknown id', async () => {
-    const updateLocation = new UpdateLocation(new InMemoryLocationRepository());
+    const updateLocation = new UpdateLocationUseCase(new InMemoryLocationRepository());
 
     await expect(updateLocation.execute(MISSING_ID, { name: 'Nuevo' })).rejects.toBeInstanceOf(
       LocationNotFoundError,

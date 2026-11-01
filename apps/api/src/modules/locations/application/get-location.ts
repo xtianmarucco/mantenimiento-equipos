@@ -3,7 +3,7 @@ import { LocationNotFoundError } from '../domain/location-not-found-error.js';
 import type { LocationRepository } from '../domain/location-repository.js';
 
 /** Use case: fetch one location. Throws `LocationNotFoundError` when it does not exist. */
-export class GetLocation {
+export class GetLocationUseCase {
   constructor(private readonly locations: LocationRepository) {}
 
   async execute(id: string): Promise<Location> {

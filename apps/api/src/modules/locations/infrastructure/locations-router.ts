@@ -8,17 +8,17 @@ import {
 import { Router } from 'express';
 
 import { parseRequest } from '../../../shared/infrastructure/request-validation.js';
-import type { CreateLocation } from '../application/create-location.js';
-import type { GetLocation } from '../application/get-location.js';
-import type { ListLocations } from '../application/list-locations.js';
-import type { UpdateLocation } from '../application/update-location.js';
+import type { CreateLocationUseCase } from '../application/create-location.js';
+import type { GetLocationUseCase } from '../application/get-location.js';
+import type { ListLocationsUseCase } from '../application/list-locations.js';
+import type { UpdateLocationUseCase } from '../application/update-location.js';
 import type { Location } from '../domain/location.js';
 
 export interface LocationsUseCases {
-  listLocations: ListLocations;
-  getLocation: GetLocation;
-  createLocation: CreateLocation;
-  updateLocation: UpdateLocation;
+  listLocations: ListLocationsUseCase;
+  getLocation: GetLocationUseCase;
+  createLocation: CreateLocationUseCase;
+  updateLocation: UpdateLocationUseCase;
 }
 
 const INVALID_ID = 'Invalid location id';

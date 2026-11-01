@@ -37,7 +37,12 @@ const locationFields = {
 /** Body of `POST /api/locations`. */
 export const createLocationSchema = z.object(locationFields);
 
+/** `POST /api/locations` body as a client sends it (before trimming and defaults). */
 export type CreateLocationInput = z.input<typeof createLocationSchema>;
+/**
+ * `POST /api/locations` body after parsing: a data shape, not the API use case (which is
+ * `CreateLocationUseCase` in `apps/api`).
+ */
 export type CreateLocation = z.infer<typeof createLocationSchema>;
 
 /** Body of `PATCH /api/locations/:id`: any subset of the create fields, at least one. */
@@ -46,7 +51,12 @@ export const updateLocationSchema = z
   .partial()
   .refine(hasAtLeastOneField, 'Provide at least one field to update');
 
+/** `PATCH /api/locations/:id` body as a client sends it. */
 export type UpdateLocationInput = z.input<typeof updateLocationSchema>;
+/**
+ * `PATCH /api/locations/:id` body after parsing: a data shape, not the API use case (which is
+ * `UpdateLocationUseCase` in `apps/api`).
+ */
 export type UpdateLocation = z.infer<typeof updateLocationSchema>;
 
 /** A location as returned by the API. Absent optional fields are `null`. */
