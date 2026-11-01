@@ -110,3 +110,19 @@ Variables (`.env`, read by Compose; never commit it):
 Every service has a health check (`pg_isready`, `GET /api/health`, the nginx root); `api` waits
 for a healthy `db` and `web` for a healthy `api`. nginx sends `no-cache` for `index.html`, the
 service worker and the manifest, and caches the content-hashed files under `/assets/` for a year.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request, with read-only repository access.
+A newer run on the same branch or pull request cancels the older one.
+
+| Job      | What it does                                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `checks` | `pnpm install --frozen-lockfile`, then `lint`, `typecheck`, `test`, `build` and `format:check` on Node from `.nvmrc` |
+| `docker` | After `checks` passes, builds the `api` and `web` images (not pushed), caching layers in the GitHub Actions cache    |
+
+Run the same checks locally before pushing:
+
+```sh
+pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm format:check
+```
