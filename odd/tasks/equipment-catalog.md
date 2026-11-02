@@ -60,11 +60,12 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - Forecast: ~1800 authored changed lines (migration SQL and generated Prisma client excluded) — exceeds the ~400 budget.
 - Delivery strategy: `ask-on-risk` (default). Chain strategy: `feature-branch-chain` (user decision 2026-11-01).
 - Slices (each child PR targets its immediate parent branch):
-  1. `feat/equipment-catalog-01-persistence` → T1 + T2
-  2. `feat/equipment-catalog-02-locations-api` → T3
-  3. `feat/equipment-catalog-03-equipment-api` → T4
-  4. `feat/equipment-catalog-04-web-list` → T5
-  5. `feat/equipment-catalog-05-web-forms` → T6 + T7
+  1. `feat/equipment-catalog-01-persistence` → T1 + T2 (+ T2.1) — PR #5
+  2. `feat/equipment-catalog-02-locations-api` → T3 (+ T3.1–T3.3) — PR #6
+  3. `feat/equipment-catalog-03-equipment-api` → T4 (+ T4.1) — PR #7
+  4. `feat/equipment-catalog-04-web-list` → T5 — PR #8
+  5. `feat/equipment-catalog-05-web-forms` → T5.1 + T6 (+ T6.1) + T7 — PR #9
+- Tracker PR: #4 (draft, base `feat/monorepo-scaffold`).
 - Base: `feat/monorepo-scaffold-04-delivery` (scaffold not merged to `main` yet). Tracker branch: `feat/equipment-catalog`.
 
 ## Progress
@@ -108,6 +109,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-02: T7 done (`633465c`, inline — delegation unavailable). API client `getLocation`/`createLocation`/`updateLocation`; `/ubicaciones` list with loading/empty/error states and edit links; create/edit form with shared-schema validation (`locationFormModel`), Spanish messages, blank optional → omitted on create and `null` on update; edit PATCHes only changed fields and navigates back without a request when nothing changed; invalid/missing id → "Ubicación no encontrada"; no delete (the API has none). Tests authored first (RED: suites failed to import before the components existed) → GREEN web 152. Checks: lint/typecheck/test/build/format:check clean; shared 62, api 119, web 152. Native review (T6.1 + T7, `--base-ref 3f8f72…`): medium, reliability lens approved, acknowledged; reviewed boundary `633465c`. Advisories R3-001/R3-002/R3-003 recorded as unscheduled T7.1.
 
+- 2026-11-02: branches pushed and chained PRs opened: tracker #4 (draft) → #5 (persistence) → #6 (locations API) → #7 (equipment API) → #8 (web list) → #9 (web forms). All CI checks green on every PR (lint/typecheck/test/build, Docker smoke, API integration).
+
 ## Next step
 
-Push `feat/equipment-catalog-05-web-forms` and open the chained PRs (human decision).
+Review and integrate the child PRs in order (#5 → #9); merge tracker #4 only after the chain completes.
