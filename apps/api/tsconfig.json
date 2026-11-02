@@ -8,5 +8,11 @@
       "@mantenimiento/shared": ["../../packages/shared/src/index.ts"]
     }
   },
-  "include": ["src", "prisma", "prisma.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "prisma",
+    "prisma.config.ts",
+    "vitest.config.ts",
+    "vitest.integration.config.ts"
+  ]
 }
