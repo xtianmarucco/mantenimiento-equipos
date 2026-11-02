@@ -48,11 +48,12 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T5.1 (`6dbf0d6`, `3b36a6a`) Follow-up (slice 04 review): R3-002 (SUGGESTION) a URL `locationId` absent from the loaded locations must stay visible and clearable in the filter (or be dropped) — `EquipmentFilterBar.tsx:47-61`; R3-001 (WARNING) README runbook query to detect rows violating `equipment_warranty_after_purchase_check` before deploying the migration to a database with existing data (no production data exists yet; migration already applied locally, so it stays unchanged).
 - [x] T6 (`04deb64`, `1e037b8`) `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
 - [x] T6.1 (940edfb) Follow-up (slice 05 review): R3-001 (WARNING) `apps/web/src/features/equipment/EquipmentForm.tsx:146-154`; R3-002 (SUGGESTION) `apps/web/src/features/equipment/EquipmentDetailView.tsx:140-149` — details in the review artifacts.
-- [ ] T7 `apps/web` locations list + create/edit form, tests.
+- [x] T7 (`633465c`) `apps/web` locations list + create/edit form, tests.
+- [ ] T7.1 (not scheduled) Follow-up (slice 05 second review, non-blocking): R3-001 (WARNING) prove the edit page's non-404 load error and loading branches (`LocationLoadStatus.tsx:33-37`); R3-002 (WARNING) prove `submitErrorFromApi` 404 and non-`ApiError` mappings (`locationFormModel.test.ts:106-155`); R3-003 (SUGGESTION) add a retry affordance to the locations list error (`LocationList.tsx:30-39`).
 
 ## Routing
 
-- Route: delegated direct per task (writer trigger: 2+ non-trivial files per task).
+- Route: delegated direct per task (writer trigger: 2+ non-trivial files per task). T7: inline direct — the `general` subagent was unavailable ("Free usage limit reached"); the parent ran the focused web checks and the full repo checks.
 
 ## Delivery
 
@@ -105,6 +106,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: T6.1 done (`940edfb`): R3-001 — `EquipmentForm` keeps the location select disabled with the load-error copy and offers a "Reintentar" affordance when `GET /api/locations` fails; R3-002 — `EquipmentDetailView.locationLabel` shows a load error instead of collapsing it into "Ubicación desconocida". RED → GREEN per suite, web 118; parent spot check: lint/typecheck/test/build/format clean.
 
+- 2026-11-02: T7 done (`633465c`, inline — delegation unavailable). API client `getLocation`/`createLocation`/`updateLocation`; `/ubicaciones` list with loading/empty/error states and edit links; create/edit form with shared-schema validation (`locationFormModel`), Spanish messages, blank optional → omitted on create and `null` on update; edit PATCHes only changed fields and navigates back without a request when nothing changed; invalid/missing id → "Ubicación no encontrada"; no delete (the API has none). Tests authored first (RED: suites failed to import before the components existed) → GREEN web 152. Checks: lint/typecheck/test/build/format:check clean; shared 62, api 119, web 152. Native review (T6.1 + T7, `--base-ref 3f8f72…`): medium, reliability lens approved, acknowledged; reviewed boundary `633465c`. Advisories R3-001/R3-002/R3-003 recorded as unscheduled T7.1.
+
 ## Next step
 
-T7 on `feat/equipment-catalog-05-web-forms`; then push branches and open the chained PRs.
+Push `feat/equipment-catalog-05-web-forms` and open the chained PRs (human decision).
