@@ -47,7 +47,7 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T5 (`879847b`, `c4d247f`) `apps/web` routing + equipment list page with status/location filters (mobile-first), api client functions, tests.
 - [x] T5.1 (`6dbf0d6`, `3b36a6a`) Follow-up (slice 04 review): R3-002 (SUGGESTION) a URL `locationId` absent from the loaded locations must stay visible and clearable in the filter (or be dropped) — `EquipmentFilterBar.tsx:47-61`; R3-001 (WARNING) README runbook query to detect rows violating `equipment_warranty_after_purchase_check` before deploying the migration to a database with existing data (no production data exists yet; migration already applied locally, so it stays unchanged).
 - [x] T6 (`04deb64`, `1e037b8`) `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
-- [ ] T6.1 Follow-up (slice 05 review): R3-001 (WARNING) `apps/web/src/features/equipment/EquipmentForm.tsx:146-154`; R3-002 (SUGGESTION) `apps/web/src/features/equipment/EquipmentDetailView.tsx:140-149` — details in the review artifacts.
+- [x] T6.1 (940edfb) Follow-up (slice 05 review): R3-001 (WARNING) `apps/web/src/features/equipment/EquipmentForm.tsx:146-154`; R3-002 (SUGGESTION) `apps/web/src/features/equipment/EquipmentDetailView.tsx:140-149` — details in the review artifacts.
 - [ ] T7 `apps/web` locations list + create/edit form, tests.
 
 ## Routing
@@ -103,6 +103,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-01: slice 05 native review (T5.1 + T6, `--base-ref 01be20f`): medium (`slice_budget_reached`), consent granted, reliability lens approved, acknowledged. Reviewed boundary: `244395b`. Advisories → T6.1.
 
+- 2026-11-01: T6.1 done (`940edfb`): R3-001 — `EquipmentForm` keeps the location select disabled with the load-error copy and offers a "Reintentar" affordance when `GET /api/locations` fails; R3-002 — `EquipmentDetailView.locationLabel` shows a load error instead of collapsing it into "Ubicación desconocida". RED → GREEN per suite, web 118; parent spot check: lint/typecheck/test/build/format clean.
+
 ## Next step
 
-T6.1, then T7 on `feat/equipment-catalog-05-web-forms`; then push branches and open the chained PRs., then T5 on `feat/equipment-catalog-04-web-list` on `feat/equipment-catalog-03-equipment-api`.
+T7 on `feat/equipment-catalog-05-web-forms`; then push branches and open the chained PRs.
