@@ -206,4 +206,17 @@ describe('EquipmentDetailPage', () => {
       'No se pudo cargar el equipo. Intente de nuevo más tarde.',
     );
   });
+
+  it('shows a load error for the location instead of an unknown location', async () => {
+    stubApi({
+      '/api/health': () => jsonResponse({ status: 'ok' }),
+      '/api/locations': () => jsonResponse({ error: { message: 'Boom' } }, { status: 500 }),
+      [DETAIL_PATH]: () => jsonResponse(ITEM),
+    });
+    const router = createMemoryRouter(routes, { initialEntries: [`/equipos/${ITEM.id}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText('No se pudo cargar la ubicación.')).toBeInTheDocument();
+    expect(screen.queryByText('Ubicación desconocida')).not.toBeInTheDocument();
+  });
 });

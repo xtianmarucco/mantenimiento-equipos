@@ -199,6 +199,28 @@ describe('EquipmentCreatePage', () => {
     respond(jsonResponse(CREATED, { status: 201 }));
     await screen.findByRole('heading', { level: 2, name: 'Vitrina nueva' });
   });
+
+  it('retries the locations load after it fails', async () => {
+    let locationsCalls = 0;
+    stubRequests({
+      'GET /api/locations': () => {
+        locationsCalls += 1;
+        if (locationsCalls === 1) {
+          return jsonResponse({ error: { message: 'Boom' } }, { status: 500 });
+        }
+        return jsonResponse([LOCATION_CENTRO, LOCATION_KIOSCO]);
+      },
+    });
+    renderAt('/equipos/nuevo');
+
+    const location = screen.getByRole('combobox', { name: 'Ubicación' });
+    expect(location).toBeDisabled();
+    const retry = await screen.findByRole('button', { name: 'Reintentar' });
+    await userEvent.click(retry);
+
+    await waitFor(() => expect(location).toBeEnabled());
+    await userEvent.selectOptions(location, 'Heladería Centro');
+  });
 });
 
 describe('EquipmentEditPage', () => {

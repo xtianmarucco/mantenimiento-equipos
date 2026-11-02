@@ -1,4 +1,4 @@
-import { idSchema, type EquipmentResponse } from '@mantenimiento/shared';
+import { idSchema, type EquipmentResponse, type LocationResponse } from '@mantenimiento/shared';
 import { useCallback, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
@@ -63,8 +63,13 @@ function EquipmentEditLoader({ id, backTo }: { id: string; backTo: string }) {
 function EquipmentFormController({ initial }: { initial: EquipmentResponse | undefined }) {
   const navigate = useNavigate();
   const navigationState = readNavigationState(useLocation().state);
-  const locations = useResource(
-    useCallback((signal: AbortSignal) => listLocations({ signal }), []),
+  const [locationsLoad, setLocationsLoad] = useState<
+    (signal: AbortSignal) => Promise<LocationResponse[]>
+  >(() => (signal: AbortSignal) => listLocations({ signal }));
+  const locations = useResource(locationsLoad);
+  const retryLocations = useCallback(
+    () => setLocationsLoad(() => (signal: AbortSignal) => listLocations({ signal })),
+    [],
   );
 
   const [values, setValues] = useState<EquipmentFormValues>(() =>
@@ -161,6 +166,7 @@ function EquipmentFormController({ initial }: { initial: EquipmentResponse | und
         cancelState={navigationState}
         onChange={onChange}
         onSubmit={() => void onSubmit()}
+        onRetryLocations={locations.status === 'error' ? retryLocations : undefined}
       />
     </section>
   );

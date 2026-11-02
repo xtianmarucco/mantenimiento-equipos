@@ -141,6 +141,9 @@ function locationLabel(locationId: string, locations: ResourceState<LocationResp
   if (locations.status === 'loading') {
     return 'Cargando…';
   }
+  if (locations.status === 'error') {
+    return 'No se pudo cargar la ubicación.';
+  }
   const location =
     locations.status === 'success' ? locations.data.find((l) => l.id === locationId) : undefined;
   return location
