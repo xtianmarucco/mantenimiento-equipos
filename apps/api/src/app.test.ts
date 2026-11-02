@@ -2,10 +2,15 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from './app.js';
+import { InMemoryEquipmentRepository } from './modules/equipment/infrastructure/in-memory-equipment-repository.js';
 import { InMemoryLocationRepository } from './modules/locations/infrastructure/in-memory-location-repository.js';
 
 function createTestApp() {
-  return createApp({ locationRepository: new InMemoryLocationRepository() });
+  const locationRepository = new InMemoryLocationRepository();
+  return createApp({
+    locationRepository,
+    equipmentRepository: new InMemoryEquipmentRepository({ locations: locationRepository }),
+  });
 }
 
 describe('createApp', () => {

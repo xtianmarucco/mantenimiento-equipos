@@ -9,6 +9,11 @@
 // not revert it; a new name column that must sort in Spanish needs the same `COLLATE` by hand.
 // The collation version follows the image's ICU: see README "Collation version" before changing
 // the postgres image tag.
+// `equipment` has the CHECK constraint `equipment_warranty_after_purchase_check`
+// (`warranty_until IS NULL OR warranty_until >= purchase_date`), added in migration
+// `20261101210000_equipment_warranty_check`. Prisma cannot express CHECK constraints and ignores
+// them when diffing; `PrismaEquipmentRepository` maps the violation by the constraint's name, so
+// keep the name in sync if it ever changes.
 
 generator client {
   provider            = "prisma-client"

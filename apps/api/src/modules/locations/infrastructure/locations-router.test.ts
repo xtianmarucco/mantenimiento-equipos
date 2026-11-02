@@ -8,6 +8,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../../../app.js';
+import { InMemoryEquipmentRepository } from '../../equipment/infrastructure/in-memory-equipment-repository.js';
 import type { Location } from '../domain/location.js';
 import { InMemoryLocationRepository } from './in-memory-location-repository.js';
 
@@ -41,7 +42,8 @@ function createTestApp() {
     locations: [centro, kiosco],
     now: () => new Date('2026-11-01T12:00:00.000Z'),
   });
-  return { app: createApp({ locationRepository }), locationRepository };
+  const equipmentRepository = new InMemoryEquipmentRepository({ locations: locationRepository });
+  return { app: createApp({ locationRepository, equipmentRepository }), locationRepository };
 }
 
 function parseLocation(body: unknown): LocationResponse {
