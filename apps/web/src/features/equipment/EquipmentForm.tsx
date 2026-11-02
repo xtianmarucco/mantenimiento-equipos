@@ -31,9 +31,14 @@ export interface EquipmentFormProps {
   cancelState?: EquipmentNavigationState | undefined;
   onChange: (field: FormField, value: string) => void;
   onSubmit: () => void;
+  /** Retries the locations request; offered only while the locations state is `error`. */
+  onRetryLocations?: (() => void) | undefined;
 }
 
 const CONTROL = `min-h-11 w-full rounded-md border bg-white px-3 py-2 text-slate-900 disabled:bg-slate-100 disabled:text-slate-600 ${focusRing}`;
+
+/** Spanish copy when the locations list failed to load; the control stays disabled until retry. */
+const LOCATION_LOAD_ERROR_HINT = 'No se pudieron cargar las ubicaciones.';
 
 function controlClass(invalid: boolean): string {
   return `${CONTROL} ${invalid ? 'border-red-700' : 'border-slate-400'}`;
@@ -56,6 +61,7 @@ export function EquipmentForm({
   cancelState,
   onChange,
   onSubmit,
+  onRetryLocations,
 }: EquipmentFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const formErrorRef = useRef<HTMLDivElement>(null);
@@ -147,10 +153,21 @@ export function EquipmentForm({
           {...field('locationId')}
           label="Ubicación"
           disabled={locations.status !== 'success'}
-          hint={locations.status === 'error' ? 'No se pudieron cargar las ubicaciones.' : undefined}
+          hint={locations.status === 'error' ? LOCATION_LOAD_ERROR_HINT : undefined}
+          action={
+            locations.status === 'error' && onRetryLocations ? (
+              <button type="button" onClick={onRetryLocations} className={secondaryButton}>
+                Reintentar
+              </button>
+            ) : undefined
+          }
         >
           <option value="">
-            {locations.status === 'loading' ? 'Cargando ubicaciones…' : 'Seleccione una ubicación'}
+            {locations.status === 'loading'
+              ? 'Cargando ubicaciones…'
+              : locations.status === 'error'
+                ? LOCATION_LOAD_ERROR_HINT
+                : 'Seleccione una ubicación'}
           </option>
           {locations.status === 'success' &&
             locationKindSchema.options.map((kind) => {
@@ -205,10 +222,12 @@ interface FieldShellProps {
   error: string | undefined;
   /** Renders the control, given the ids that describe it (hint and error). */
   children: (describedBy: string | undefined) => ReactNode;
+  /** Optional action rendered with the field, e.g. a retry affordance under the hint/error. */
+  action?: ReactNode;
 }
 
 /** Label, control, hint and error message, wired with `aria-describedby`. */
-function FieldShell({ id, label, optional, hint, error, children }: FieldShellProps) {
+function FieldShell({ id, label, optional, hint, error, children, action }: FieldShellProps) {
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined;
@@ -234,6 +253,7 @@ function FieldShell({ id, label, optional, hint, error, children }: FieldShellPr
           {error}
         </p>
       )}
+      {action}
     </div>
   );
 }
@@ -290,6 +310,7 @@ function TextField({
 interface SelectFieldProps extends BaseFieldProps {
   disabled?: boolean;
   children: ReactNode;
+  action?: ReactNode;
 }
 
 function SelectField({
@@ -303,9 +324,10 @@ function SelectField({
   hint,
   disabled,
   children,
+  action,
 }: SelectFieldProps) {
   return (
-    <FieldShell id={id} label={label} optional={optional} hint={hint} error={error}>
+    <FieldShell id={id} label={label} optional={optional} hint={hint} error={error} action={action}>
       {(describedBy) => (
         <select
           id={id}

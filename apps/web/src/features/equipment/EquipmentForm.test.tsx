@@ -69,6 +69,24 @@ describe('EquipmentForm', () => {
     expect(within(groups[1]!).getByRole('option')).toHaveTextContent('Kiosco Plaza');
   });
 
+  it('offers a retry when the locations fail to load', async () => {
+    const onRetryLocations = vi.fn();
+    renderForm({
+      locations: { status: 'error', message: 'Boom', httpStatus: 500 },
+      onRetryLocations,
+    });
+
+    const select = screen.getByRole('combobox', { name: 'Ubicación' });
+    expect(select).toBeDisabled();
+    expect(
+      within(select).getByRole('option', { name: 'No se pudieron cargar las ubicaciones.' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(onRetryLocations).toHaveBeenCalledTimes(1);
+  });
+
   it('reports edits per field', async () => {
     const props = renderForm();
 
