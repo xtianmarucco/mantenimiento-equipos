@@ -1,5 +1,8 @@
 // Prisma schema for the API. Models are added by the feature that needs them.
 // The connection URL lives in `prisma.config.ts` (Prisma 7).
+// Enums and fields mirror the zod schemas in `packages/shared`; keep them in sync. Enum parity
+// is enforced by `src/shared/infrastructure/prisma-enums.test.ts`; length limits are not.
+// Tables and columns use snake_case (`@@map` / `@map`); the client keeps camelCase.
 
 generator client {
   provider            = "prisma-client"
@@ -10,4 +13,71 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum LocationKind {
+  OWN_STORE
+  THIRD_PARTY
+
+  @@map("location_kind")
+}
+
+enum EquipmentType {
+  FREEZER
+  REFRIGERATOR
+  DISPLAY_CASE
+  ICE_CREAM_MACHINE
+  OTHER
+
+  @@map("equipment_type")
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  IN_REPAIR
+  OUT_OF_SERVICE
+  RETIRED
+
+  @@map("equipment_status")
+}
+
+/// An own store or a third-party kiosk where equipment lives.
+model Location {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @db.VarChar(120)
+  kind        LocationKind
+  address     String?      @db.VarChar(200)
+  contactName String?      @map("contact_name") @db.VarChar(120)
+  phone       String?      @db.VarChar(20)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  equipment Equipment[]
+
+  @@map("locations")
+}
+
+/// A piece of equipment, identified by its unique internal code (the QR payload).
+model Equipment {
+  id            String          @id @default(uuid()) @db.Uuid
+  code          String          @unique @db.VarChar(20)
+  name          String          @db.VarChar(120)
+  type          EquipmentType
+  brand         String          @db.VarChar(80)
+  model         String          @db.VarChar(80)
+  serialNumber  String?         @map("serial_number") @db.VarChar(80)
+  purchaseDate  DateTime        @map("purchase_date") @db.Date
+  warrantyUntil DateTime?       @map("warranty_until") @db.Date
+  status        EquipmentStatus @default(OPERATIONAL)
+  notes         String?         @db.VarChar(1000)
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  locationId String   @map("location_id") @db.Uuid
+  // Restrict: a location that still holds equipment cannot be deleted.
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@index([locationId])
+  @@index([status])
+  @@map("equipment")
 }
