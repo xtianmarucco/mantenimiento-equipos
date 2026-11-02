@@ -36,15 +36,13 @@ describe('routes', () => {
     expect(screen.getByRole('link', { name: 'Equipos' })).toHaveAttribute('href', '/equipos');
   });
 
-  it.each([
-    ['/equipos/nuevo', 'Nuevo equipo'],
-    ['/equipos/33333333-3333-4333-8333-333333333333', 'Detalle del equipo'],
-    ['/ubicaciones', 'Ubicaciones'],
-  ])('reserves %s with a placeholder page', async (path, title) => {
-    renderAt(path);
+  it('renders the locations list page', async () => {
+    renderAt('/ubicaciones');
 
-    expect(await screen.findByRole('heading', { level: 2, name: title })).toBeInTheDocument();
-    expect(screen.getByText(/Próximamente/)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Ubicaciones' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Próximamente/)).not.toBeInTheDocument();
   });
 
   it('shows a not found page for unknown paths', async () => {
