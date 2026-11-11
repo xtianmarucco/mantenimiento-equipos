@@ -49,11 +49,11 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 - [x] T6 (`04deb64`, `1e037b8`) `apps/web` equipment detail + create/edit form (shared zod validation, location select), tests.
 - [x] T6.1 (940edfb) Follow-up (slice 05 review): R3-001 (WARNING) `apps/web/src/features/equipment/EquipmentForm.tsx:146-154`; R3-002 (SUGGESTION) `apps/web/src/features/equipment/EquipmentDetailView.tsx:140-149` — details in the review artifacts.
 - [x] T7 (`633465c`) `apps/web` locations list + create/edit form, tests.
-- [ ] T7.1 (not scheduled) Follow-up (slice 05 second review, non-blocking): R3-001 (WARNING) prove the edit page's non-404 load error and loading branches (`LocationLoadStatus.tsx:33-37`); R3-002 (WARNING) prove `submitErrorFromApi` 404 and non-`ApiError` mappings (`locationFormModel.test.ts:106-155`); R3-003 (SUGGESTION) add a retry affordance to the locations list error (`LocationList.tsx:30-39`).
+- [x] T7.1 (`2a88377`) Follow-up (slice 05 second review, non-blocking): R3-001 (WARNING) prove the edit page's non-404 load error and loading branches (`LocationLoadStatus.tsx:33-37`); R3-002 (WARNING) prove `submitErrorFromApi` 404 and non-`ApiError` mappings (`locationFormModel.test.ts:106-155`); R3-003 (SUGGESTION) add a retry affordance to the locations list error (`LocationList.tsx:30-39`).
 
 ## Routing
 
-- Route: delegated direct per task (writer trigger: 2+ non-trivial files per task). T7: inline direct — the `general` subagent was unavailable ("Free usage limit reached"); the parent ran the focused web checks and the full repo checks.
+- Route: delegated direct per task (writer trigger: 2+ non-trivial files per task). T7: inline direct — the `general` subagent was unavailable ("Free usage limit reached"); the parent ran the focused web checks and the full repo checks. T7.1: delegated direct (writer).
 
 ## Delivery
 
@@ -65,7 +65,9 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
   3. `feat/equipment-catalog-03-equipment-api` → T4 (+ T4.1) — PR #7
   4. `feat/equipment-catalog-04-web-list` → T5 — PR #8
   5. `feat/equipment-catalog-05-web-forms` → T5.1 + T6 (+ T6.1) + T7 — PR #9
+  6. `feat/equipment-catalog-06-locations-polish` → T7.1 — PR pending (base `feat/monorepo-scaffold`)
 - Tracker PR: #4 (draft, base `feat/monorepo-scaffold`).
+- 2026-11-11: #4–#9 all merged into `feat/monorepo-scaffold`; the tracker #4 was merged first, flattening the chain. Slice 6 branches from `origin/feat/monorepo-scaffold`.
 - Base: `feat/monorepo-scaffold-04-delivery` (scaffold not merged to `main` yet). Tracker branch: `feat/equipment-catalog`.
 
 ## Progress
@@ -111,6 +113,8 @@ Out of scope: authentication/roles, QR generation/scanning, events (maintenance,
 
 - 2026-11-02: branches pushed and chained PRs opened: tracker #4 (draft) → #5 (persistence) → #6 (locations API) → #7 (equipment API) → #8 (web list) → #9 (web forms). All CI checks green on every PR (lint/typecheck/test/build, Docker smoke, API integration).
 
+- 2026-11-11: T7.1 done (`2a88377`, delegated writer). R3-003: `LocationList` takes an optional `onRetry` and renders "Reintentar" inside the error alert; `LocationListPage` swaps in a fresh `load` (same pattern as T6.1) so `useResource` refetches. RED: `LocationList` "offers a retry button…" and `LocationListPage` "reloads the list when the user retries…" failed (no button) → GREEN. R3-001: edit-page tests for the loading branch (pending GET → "Cargando ubicación…" status, no form) and the non-404 error branch (500 → "No se pudo cargar la ubicación…" alert, no "not found" heading, back link). R3-002: `submitErrorFromApi` tests for a 404 `ApiError` (form error without the API detail) and a non-`ApiError` (generic "Ocurrió un error inesperado."). R3-001/R3-002 characterize existing behavior: passed on first correct run, no bug found. Checks: web test 159/159, web typecheck, lint, prettier check (`apps/web odd`) clean. Native assess (`--base-ref origin/feat/monorepo-scaffold --committed-only`, untracked `.atl/` excluded): medium (`executable_change`), `review_due: false` (`under_budget`); slice stays pending until a later commit reaches the budget. Parent spot check: web 159/159.
+
 ## Next step
 
-Review and integrate the child PRs in order (#5 → #9); merge tracker #4 only after the chain completes.
+Open PR for slice 6 (T7.1) against `feat/monorepo-scaffold`; then start the equipment-events feature.
