@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { type LocationResponse } from '@mantenimiento/shared';
 
@@ -18,7 +19,7 @@ const LOCATION: LocationResponse = {
   updatedAt: '2026-10-01T12:00:00.000Z',
 };
 
-function renderList(props: { state: ResourceState<LocationResponse[]> }) {
+function renderList(props: { state: ResourceState<LocationResponse[]>; onRetry?: () => void }) {
   return render(
     <MemoryRouter>
       <LocationList {...props} />
@@ -56,6 +57,23 @@ describe('LocationList', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'No se pudieron cargar las ubicaciones. Intente de nuevo más tarde.',
     );
+  });
+
+  it('offers a retry button in the error state that calls onRetry', async () => {
+    const onRetry = vi.fn();
+    renderList({ state: { status: 'error' }, onRetry });
+
+    await userEvent.click(
+      within(screen.getByRole('alert')).getByRole('button', { name: 'Reintentar' }),
+    );
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer a retry button outside the error state', () => {
+    renderList({ state: { status: 'loading' }, onRetry: vi.fn() });
+
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
   });
 
   it('renders each location with name, kind, address, contact and phone, linking to the edit page', () => {

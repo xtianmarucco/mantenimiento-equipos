@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
@@ -57,5 +58,26 @@ describe('LocationListPage', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('No se pudieron cargar las ubicaciones.');
     expect(alert).toHaveTextContent('Internal server error');
+  });
+
+  it('reloads the list when the user retries after a failure', async () => {
+    let calls = 0;
+    const { fetchMock } = renderAt('/ubicaciones', () => {
+      calls += 1;
+      return calls === 1
+        ? jsonResponse({ error: { message: 'Internal server error' } }, { status: 500 })
+        : jsonResponse([LOCATION_CENTRO]);
+    });
+
+    const alert = await screen.findByRole('alert');
+    await userEvent.click(within(alert).getByRole('button', { name: 'Reintentar' }));
+
+    const list = await screen.findByRole('list', { name: 'Ubicaciones' });
+    expect(within(list).getByText('Heladería Centro')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(requestedPaths(fetchMock).filter((path) => path.startsWith('/api/locations'))).toEqual([
+      '/api/locations',
+      '/api/locations',
+    ]);
   });
 });

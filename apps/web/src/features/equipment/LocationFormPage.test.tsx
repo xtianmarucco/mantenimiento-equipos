@@ -145,6 +145,35 @@ describe('LocationEditPage', () => {
     expect(sentBodies(fetchMock, 'PATCH')).toEqual([]);
   });
 
+  it('announces loading while the location request is pending', async () => {
+    stubRequests({
+      [`GET /api/locations/${ITEM.id}`]: () => new Promise<Response>(() => {}),
+    });
+    renderAt(`/ubicaciones/${ITEM.id}/editar`);
+
+    expect(await screen.findByText('Cargando ubicación…')).toHaveAttribute('role', 'status');
+    expect(screen.queryByRole('textbox', { name: 'Nombre' })).not.toBeInTheDocument();
+  });
+
+  it('shows a load error, not "not found", when the location request fails', async () => {
+    stubRequests({
+      [`GET /api/locations/${ITEM.id}`]: () =>
+        jsonResponse({ error: { message: 'Internal server error' } }, { status: 500 }),
+    });
+    renderAt(`/ubicaciones/${ITEM.id}/editar`);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo cargar la ubicación. Intente de nuevo más tarde.',
+    );
+    expect(
+      screen.queryByRole('heading', { name: 'Ubicación no encontrada' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Volver a ubicaciones' })).toHaveAttribute(
+      'href',
+      '/ubicaciones',
+    );
+  });
+
   it('shows "Ubicación no encontrada" for a missing id', async () => {
     stubRequests({});
     renderAt('/ubicaciones/44444444-4444-4444-8444-444444444444/editar');

@@ -2,7 +2,7 @@ import type { LocationResponse } from '@mantenimiento/shared';
 import { Link } from 'react-router';
 
 import type { ResourceState } from '../../shared/hooks/useResource';
-import { focusRing, primaryButton } from '../../shared/ui/styles';
+import { focusRing, primaryButton, secondaryButton } from '../../shared/ui/styles';
 import { LOCATION_KIND_LABELS } from './labels';
 
 const MESSAGE_BOX = 'rounded-xl border border-slate-200 bg-white p-4 text-slate-700';
@@ -10,8 +10,17 @@ const MESSAGE_BOX = 'rounded-xl border border-slate-200 bg-white p-4 text-slate-
 const BADGE =
   'rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-800 ring-1 ring-inset ring-slate-700/20';
 
-/** Presentational list of locations with loading, empty and error states. */
-export function LocationList({ state }: { state: ResourceState<LocationResponse[]> }) {
+/**
+ * Presentational list of locations with loading, empty and error states. `onRetry`, when given,
+ * is offered as a "Reintentar" action in the error state.
+ */
+export function LocationList({
+  state,
+  onRetry,
+}: {
+  state: ResourceState<LocationResponse[]>;
+  onRetry?: (() => void) | undefined;
+}) {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -35,6 +44,11 @@ export function LocationList({ state }: { state: ResourceState<LocationResponse[
               : 'No se pudieron cargar las ubicaciones. Intente de nuevo más tarde.'}
           </p>
           {state.message && <p className="mt-1 text-sm">Detalle: {state.message}</p>}
+          {onRetry && (
+            <button type="button" onClick={onRetry} className={`mt-3 ${secondaryButton}`}>
+              Reintentar
+            </button>
+          )}
         </div>
       )}
 

@@ -141,6 +141,22 @@ describe('submitErrorFromApi', () => {
     });
   });
 
+  it('reports a missing location (404) as a form error without the API message', () => {
+    const error = new ApiError('failed', { status: 404, apiMessage: 'Location not found' });
+
+    expect(submitErrorFromApi(error)).toEqual({
+      fieldErrors: {},
+      formError: { message: 'No se encontró la ubicación. Vuelva a la lista e intente de nuevo.' },
+    });
+  });
+
+  it('reports an unexpected non-API error as a generic form error', () => {
+    expect(submitErrorFromApi(new Error('boom'))).toEqual({
+      fieldErrors: {},
+      formError: { message: 'Ocurrió un error inesperado.' },
+    });
+  });
+
   it('reports other failures with the API message as detail', () => {
     const error = new ApiError('failed', { status: 500, apiMessage: 'Internal server error' });
 
