@@ -1,24 +1,28 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { App } from './App';
+import { jsonResponse, stubApi } from './test/fixtures';
 
 describe('App', () => {
-  it('renders the shell with the app name and the API health status', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ status: 'ok' }), {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      ),
-    );
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('redirects / to /equipos inside the app shell', async () => {
+    stubApi({
+      '/api/health': () => jsonResponse({ status: 'ok' }),
+      '/api/equipment': () => jsonResponse([]),
+      '/api/locations': () => jsonResponse([]),
+    });
 
     render(<App />);
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Mantenimiento de Equipos' }),
+      await screen.findByRole('heading', { level: 1, name: 'Mantenimiento de Equipos' }),
     ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Equipos' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/equipos');
     expect(await screen.findByText('API disponible')).toBeInTheDocument();
   });
 });
