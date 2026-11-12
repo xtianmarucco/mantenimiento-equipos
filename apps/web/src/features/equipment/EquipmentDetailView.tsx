@@ -1,4 +1,8 @@
-import type { EquipmentResponse, LocationResponse } from '@mantenimiento/shared';
+import type {
+  EquipmentEventResponse,
+  EquipmentResponse,
+  LocationResponse,
+} from '@mantenimiento/shared';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 
@@ -11,6 +15,7 @@ import {
   textLink,
 } from '../../shared/ui/styles';
 import { formatDate, formatDateTime, warrantyStatus } from './dates';
+import { EquipmentEventHistory } from './EquipmentEventHistory';
 import { LOCATION_KIND_LABELS, STATUS_LABELS, TYPE_LABELS } from './labels';
 import type { EquipmentNavigationState } from './navigation';
 import { StatusBadge } from './StatusBadge';
@@ -26,6 +31,9 @@ export type RetireState =
 interface EquipmentDetailViewProps {
   equipment: EquipmentResponse;
   locations: ResourceState<LocationResponse[]>;
+  /** The event history, loaded on its own so a failure leaves the rest of the detail usable. */
+  events: ResourceState<EquipmentEventResponse[]>;
+  onEventsRetry: () => void;
   /** Today as `YYYY-MM-DD`, for the warranty status. */
   today: string;
   backTo: string;
@@ -42,10 +50,15 @@ const WARRANTY_LABELS = {
   expired: 'Garantía vencida',
 } as const;
 
-/** Presentational equipment detail: every field, the edit link and the retire action. */
+/**
+ * Presentational equipment detail: every field, the edit link, the retire action and the event
+ * history.
+ */
 export function EquipmentDetailView({
   equipment,
   locations,
+  events,
+  onEventsRetry,
   today,
   backTo,
   navigationState,
@@ -133,6 +146,8 @@ export function EquipmentDetailView({
           <time dateTime={equipment.updatedAt}>{formatDateTime(equipment.updatedAt)}</time>
         </Field>
       </dl>
+
+      <EquipmentEventHistory events={events} locations={locations} onRetry={onEventsRetry} />
     </section>
   );
 }

@@ -1,6 +1,8 @@
 import {
+  equipmentEventResponseSchema,
   equipmentResponseSchema,
   type CreateEquipmentInput,
+  type EquipmentEventResponse,
   type EquipmentListQuery,
   type EquipmentResponse,
   type UpdateEquipmentInput,
@@ -10,6 +12,7 @@ import { z } from 'zod';
 import { getJson, sendJson } from './client';
 
 const equipmentListSchema = z.array(equipmentResponseSchema);
+const equipmentEventListSchema = z.array(equipmentEventResponseSchema);
 
 /** Path of `GET /api/equipment`; the query string carries only the filters that are set. */
 export function buildEquipmentListPath(filters: EquipmentListQuery): string {
@@ -60,4 +63,12 @@ export function updateEquipment(
 /** Retires equipment (status `RETIRED`); retiring it again is a no-op. */
 export function retireEquipment(id: string): Promise<EquipmentResponse> {
   return sendJson('POST', `${equipmentPath(id)}/retire`, equipmentResponseSchema);
+}
+
+/** Lists the event history of one item, newest first; a missing id rejects with status 404. */
+export function listEquipmentEvents(
+  id: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<EquipmentEventResponse[]> {
+  return getJson(`${equipmentPath(id)}/events`, equipmentEventListSchema, options);
 }
