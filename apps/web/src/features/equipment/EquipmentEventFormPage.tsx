@@ -83,6 +83,14 @@ const loadLocations = (signal: AbortSignal): Promise<LocationResponse[]> =>
 const loadActiveEquipment = (signal: AbortSignal): Promise<EquipmentResponse[]> =>
   listEquipment({}, { signal });
 
+/** Whether `field` is one of the keys of `options`, the selects whose options come from the API. */
+function isOptionsField(
+  field: EventFormField,
+  options: Record<OptionsField, unknown>,
+): field is OptionsField {
+  return field in options;
+}
+
 /**
  * Container: holds the form state, validates with the shared schema, records the event through
  * the API and maps server errors; on success it returns to the detail, which reloads the item and
@@ -112,8 +120,7 @@ function EquipmentEventController({ equipment }: { equipment: EquipmentResponse 
     // An invalid field whose options are still loading is disabled: explain the wait in a form
     // error, which the form focuses instead of the control.
     const waiting =
-      (first === 'toLocationId' || first === 'replacementEquipmentId') &&
-      options[first].status === 'loading';
+      first !== undefined && isOptionsField(first, options) && options[first].status === 'loading';
     const shownFormError = nextFormError ?? (waiting ? OPTIONS_LOADING : undefined);
     setErrors(fieldErrors);
     setFormError(shownFormError);

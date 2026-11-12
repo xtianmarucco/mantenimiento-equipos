@@ -1,6 +1,9 @@
+import { locationKindSchema, type LocationResponse } from '@mantenimiento/shared';
 import type { ReactNode } from 'react';
 
+import type { ResourceState } from '../../shared/hooks/useResource';
 import { focusRing } from '../../shared/ui/styles';
+import { LOCATION_KIND_GROUP_LABELS } from './labels';
 
 const CONTROL = `min-h-11 w-full rounded-md border bg-white px-3 py-2 text-slate-900 disabled:bg-slate-100 disabled:text-slate-600 ${focusRing}`;
 
@@ -182,5 +185,62 @@ export function TextAreaField({
         />
       )}
     </FieldShell>
+  );
+}
+
+/** Spanish copy when the locations list failed to load; the control stays disabled until retry. */
+export const LOCATIONS_LOAD_ERROR = 'No se pudieron cargar las ubicaciones.';
+
+interface LocationSelectFieldProps extends Omit<BaseFieldProps, 'hint'> {
+  locations: ResourceState<LocationResponse[]>;
+  /** A location left out of the options, e.g. the current one of a transfer. */
+  excludeId?: string | undefined;
+  /** Rendered with the field only while the locations failed to load, e.g. a retry button. */
+  retryAction?: ReactNode;
+}
+
+/**
+ * Location select grouped by kind; disabled until the locations load, with the load state in the
+ * placeholder option (and the error also as a hint).
+ */
+export function LocationSelectField({
+  locations,
+  excludeId,
+  retryAction,
+  ...fieldProps
+}: LocationSelectFieldProps) {
+  const options =
+    locations.status === 'success'
+      ? locations.data.filter((location) => location.id !== excludeId)
+      : [];
+  return (
+    <SelectField
+      {...fieldProps}
+      disabled={locations.status !== 'success'}
+      hint={locations.status === 'error' ? LOCATIONS_LOAD_ERROR : undefined}
+      action={locations.status === 'error' ? retryAction : undefined}
+    >
+      <option value="">
+        {locations.status === 'loading'
+          ? 'Cargando ubicaciones…'
+          : locations.status === 'error'
+            ? LOCATIONS_LOAD_ERROR
+            : 'Seleccione una ubicación'}
+      </option>
+      {locationKindSchema.options.map((kind) => {
+        const group = options.filter((location) => location.kind === kind);
+        return (
+          group.length > 0 && (
+            <optgroup key={kind} label={LOCATION_KIND_GROUP_LABELS[kind]}>
+              {group.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </optgroup>
+          )
+        );
+      })}
+    </SelectField>
   );
 }

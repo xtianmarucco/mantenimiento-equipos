@@ -1,16 +1,12 @@
-import {
-  equipmentTypeSchema,
-  locationKindSchema,
-  type LocationResponse,
-} from '@mantenimiento/shared';
+import { equipmentTypeSchema, type LocationResponse } from '@mantenimiento/shared';
 import { useEffect, useId, useRef, type FormEvent } from 'react';
 import { Link } from 'react-router';
 
 import type { ResourceState } from '../../shared/hooks/useResource';
 import { errorBox, focusRing, primaryButton, secondaryButton } from '../../shared/ui/styles';
 import type { EquipmentFormValues, FieldErrors, FormError, FormField } from './equipmentFormModel';
-import { SelectField, TextAreaField, TextField } from './FormFields';
-import { LOCATION_KIND_GROUP_LABELS, TYPE_LABELS } from './labels';
+import { LocationSelectField, SelectField, TextAreaField, TextField } from './FormFields';
+import { TYPE_LABELS } from './labels';
 import type { EquipmentNavigationState } from './navigation';
 
 /** Asks the form to move focus; a new `seq` repeats the request for the same target. */
@@ -34,9 +30,6 @@ export interface EquipmentFormProps {
   /** Retries the locations request; offered only while the locations state is `error`. */
   onRetryLocations?: (() => void) | undefined;
 }
-
-/** Spanish copy when the locations list failed to load; the control stays disabled until retry. */
-const LOCATION_LOAD_ERROR_HINT = 'No se pudieron cargar las ubicaciones.';
 
 /**
  * Presentational create/edit form. Controlled: values, errors and the saving flag come from the
@@ -135,42 +128,18 @@ export function EquipmentForm({
         <TextField {...field('warrantyUntil')} label="Garantía hasta" type="date" optional />
 
         {mode === 'create' && (
-          <SelectField
+          <LocationSelectField
             {...field('locationId')}
             label="Ubicación"
-            disabled={locations.status !== 'success'}
-            hint={locations.status === 'error' ? LOCATION_LOAD_ERROR_HINT : undefined}
-            action={
-              locations.status === 'error' && onRetryLocations ? (
+            locations={locations}
+            retryAction={
+              onRetryLocations && (
                 <button type="button" onClick={onRetryLocations} className={secondaryButton}>
                   Reintentar
                 </button>
-              ) : undefined
+              )
             }
-          >
-            <option value="">
-              {locations.status === 'loading'
-                ? 'Cargando ubicaciones…'
-                : locations.status === 'error'
-                  ? LOCATION_LOAD_ERROR_HINT
-                  : 'Seleccione una ubicación'}
-            </option>
-            {locations.status === 'success' &&
-              locationKindSchema.options.map((kind) => {
-                const group = locations.data.filter((location) => location.kind === kind);
-                return (
-                  group.length > 0 && (
-                    <optgroup key={kind} label={LOCATION_KIND_GROUP_LABELS[kind]}>
-                      {group.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )
-                );
-              })}
-          </SelectField>
+          />
         )}
       </div>
 

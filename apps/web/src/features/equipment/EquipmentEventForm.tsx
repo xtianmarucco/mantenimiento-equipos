@@ -1,8 +1,4 @@
-import {
-  locationKindSchema,
-  type EquipmentResponse,
-  type LocationResponse,
-} from '@mantenimiento/shared';
+import { type EquipmentResponse, type LocationResponse } from '@mantenimiento/shared';
 import { useEffect, useId, useRef, type FormEvent } from 'react';
 import { Link } from 'react-router';
 
@@ -17,8 +13,8 @@ import {
   type OptionsField,
 } from './equipmentEventFormModel';
 import type { FormError } from './equipmentFormModel';
-import { SelectField, TextAreaField, TextField } from './FormFields';
-import { EVENT_TYPE_LABELS, LOCATION_KIND_GROUP_LABELS, STATUS_LABELS } from './labels';
+import { LocationSelectField, SelectField, TextAreaField, TextField } from './FormFields';
+import { EVENT_TYPE_LABELS, STATUS_LABELS } from './labels';
 import type { EquipmentNavigationState } from './navigation';
 
 /** Asks the form to move focus; a new `seq` repeats the request for the same target. */
@@ -51,7 +47,6 @@ export interface EquipmentEventFormProps {
   onRetryReplacements?: (() => void) | undefined;
 }
 
-const LOCATIONS_ERROR = 'No se pudieron cargar las ubicaciones.';
 const REPLACEMENTS_ERROR = 'No se pudieron cargar los equipos.';
 const BREAKDOWN_STATUSES = ['IN_REPAIR', 'OUT_OF_SERVICE'] as const;
 
@@ -128,10 +123,6 @@ export function EquipmentEventForm({
     ) : undefined;
   }
 
-  const destinations =
-    locations.status === 'success'
-      ? locations.data.filter((location) => location.id !== equipment.locationId)
-      : [];
   const candidates =
     replacements.status === 'success'
       ? replacements.data.filter((item) => item.id !== equipment.id && item.status !== 'RETIRED')
@@ -176,39 +167,13 @@ export function EquipmentEventForm({
         )}
 
         {shown.has('toLocationId') && (
-          <SelectField
+          <LocationSelectField
             {...field('toLocationId')}
             label="Ubicación de destino"
-            disabled={locations.status !== 'success'}
-            hint={locations.status === 'error' ? LOCATIONS_ERROR : undefined}
-            action={
-              locations.status === 'error'
-                ? retryButton('toLocationId', onRetryLocations)
-                : undefined
-            }
-          >
-            <option value="">
-              {locations.status === 'loading'
-                ? 'Cargando ubicaciones…'
-                : locations.status === 'error'
-                  ? LOCATIONS_ERROR
-                  : 'Seleccione una ubicación'}
-            </option>
-            {locationKindSchema.options.map((kind) => {
-              const group = destinations.filter((location) => location.kind === kind);
-              return (
-                group.length > 0 && (
-                  <optgroup key={kind} label={LOCATION_KIND_GROUP_LABELS[kind]}>
-                    {group.map((location) => (
-                      <option key={location.id} value={location.id}>
-                        {location.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )
-              );
-            })}
-          </SelectField>
+            locations={locations}
+            excludeId={equipment.locationId}
+            retryAction={retryButton('toLocationId', onRetryLocations)}
+          />
         )}
 
         {shown.has('replacementEquipmentId') && (
