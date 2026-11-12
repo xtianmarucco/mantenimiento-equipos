@@ -54,11 +54,11 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 
 ## Tasks
 
-- [ ] T1 Shared: event type enum, discriminated create-event schema, event response schema; remove `status`/`locationId` from `updateEquipmentSchema`; tests.
+- [ ] T1 Shared: event type enum, discriminated create-event schema, event response schema; tests. (Additive only, so every slice keeps api and web green.)
 - [ ] T2 API persistence: Prisma `EquipmentEvent` model + migration, enum parity, repository "record event" (atomic event + equipment change) and "list events" in the port, in-memory and Prisma adapters, contract tests (unit + integration).
-- [ ] T3 API behavior: record/list event use cases with transition rules, `GET`/`POST /api/equipment/:id/events`, drop `/retire` and PATCH status/location, seed events, README.
+- [ ] T3 API behavior: record/list event use cases with transition rules, `GET`/`POST /api/equipment/:id/events`, seed events, README.
 - [ ] T4 Web history: events API client and history section on the equipment detail page.
-- [ ] T5 Web register: "Registrar evento" form with type-specific fields, "Dar de baja" as `RETIREMENT`, remove status/location from the edit form.
+- [ ] T5 Web register: "Registrar evento" form with type-specific fields, "Dar de baja" as `RETIREMENT`, remove status/location from the edit form; remove the legacy paths end to end (`status`/`locationId` from `updateEquipmentSchema` and the PATCH use case, `POST /:id/retire` and its use case and client), README.
 
 ## Checks
 
