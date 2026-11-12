@@ -1,4 +1,9 @@
-import type { EquipmentStatus, EquipmentType, LocationKind } from '@mantenimiento/shared';
+import type {
+  EquipmentEventType,
+  EquipmentStatus,
+  EquipmentType,
+  LocationKind,
+} from '@mantenimiento/shared';
 
 /** Spanish labels for equipment enum values: the single source for UI copy. */
 export const STATUS_LABELS: Record<EquipmentStatus, string> = {
@@ -31,4 +36,14 @@ export const LOCATION_KIND_LABELS: Record<LocationKind, string> = {
 export const LOCATION_KIND_GROUP_LABELS: Record<LocationKind, string> = {
   OWN_STORE: 'Locales propios',
   THIRD_PARTY: 'Kioscos',
+};
+
+/** What happened to an equipment item, as shown in its history. */
+export const EVENT_TYPE_LABELS: Record<EquipmentEventType, string> = {
+  MAINTENANCE: 'Mantenimiento',
+  BREAKDOWN: 'Rotura',
+  REPAIR: 'Reparación',
+  TRANSFER: 'Traslado',
+  REPLACEMENT: 'Cambio',
+  RETIREMENT: 'Baja',
 };

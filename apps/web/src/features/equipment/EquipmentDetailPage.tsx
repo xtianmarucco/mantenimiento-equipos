@@ -1,8 +1,12 @@
-import { idSchema, type EquipmentResponse } from '@mantenimiento/shared';
+import {
+  idSchema,
+  type EquipmentEventResponse,
+  type EquipmentResponse,
+} from '@mantenimiento/shared';
 import { useCallback, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 
-import { getEquipment, retireEquipment } from '../../shared/api/equipment';
+import { getEquipment, listEquipmentEvents, retireEquipment } from '../../shared/api/equipment';
 import { listLocations } from '../../shared/api/locations';
 import { isNotFound, useResource } from '../../shared/hooks/useResource';
 import { todayIsoDate } from './dates';
@@ -23,7 +27,7 @@ export function EquipmentDetailPage() {
   return <EquipmentDetail key={id} id={id} />;
 }
 
-/** Container: loads the item and the locations, and runs the retire action. */
+/** Container: loads the item, the locations and the event history, and runs the retire action. */
 function EquipmentDetail({ id }: { id: string }) {
   const navigationState = readNavigationState(useLocation().state);
   const backTo = listPath(navigationState);
@@ -33,6 +37,15 @@ function EquipmentDetail({ id }: { id: string }) {
   );
   const locations = useResource(
     useCallback((signal: AbortSignal) => listLocations({ signal }), []),
+  );
+  // A fresh load function refetches the history (retry, or after an action that may add events).
+  const [eventsLoad, setEventsLoad] = useState<
+    (signal: AbortSignal) => Promise<EquipmentEventResponse[]>
+  >(() => (signal: AbortSignal) => listEquipmentEvents(id, { signal }));
+  const events = useResource(eventsLoad);
+  const reloadEvents = useCallback(
+    () => setEventsLoad(() => (signal: AbortSignal) => listEquipmentEvents(id, { signal })),
+    [id],
   );
   const [retire, setRetire] = useState<RetireState>({ step: 'idle' });
   // The item as returned by the retire action; it supersedes the loaded one.
@@ -44,10 +57,11 @@ function EquipmentDetail({ id }: { id: string }) {
       (item) => {
         setRetired(item);
         setRetire({ step: 'done' });
+        reloadEvents();
       },
       () => setRetire({ step: 'failed' }),
     );
-  }, [id]);
+  }, [id, reloadEvents]);
 
   if (loaded.status === 'loading') {
     return <EquipmentLoadStatus state={{ status: 'loading' }} backTo={backTo} />;
@@ -65,6 +79,8 @@ function EquipmentDetail({ id }: { id: string }) {
     <EquipmentDetailView
       equipment={retired ?? loaded.data}
       locations={locations}
+      events={events}
+      onEventsRetry={reloadEvents}
       today={todayIsoDate(new Date())}
       backTo={backTo}
       navigationState={navigationState}

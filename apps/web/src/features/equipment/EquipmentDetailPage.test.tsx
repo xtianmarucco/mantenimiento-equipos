@@ -1,3 +1,4 @@
+import type { EquipmentEventResponse } from '@mantenimiento/shared';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -20,12 +21,29 @@ const ITEM = makeEquipment({
   notes: 'Compresor revisado',
 });
 const DETAIL_PATH = `/api/equipment/${ITEM.id}`;
+const EVENTS_PATH = `${DETAIL_PATH}/events`;
+
+const TRANSFER: EquipmentEventResponse = {
+  id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+  equipmentId: ITEM.id,
+  type: 'TRANSFER',
+  occurredOn: '2026-10-20',
+  description: 'Mudanza al kiosco',
+  technician: null,
+  cost: null,
+  resultingStatus: null,
+  fromLocationId: LOCATION_CENTRO.id,
+  toLocationId: LOCATION_KIOSCO.id,
+  replacementEquipmentId: null,
+  createdAt: '2026-10-20T15:00:00.000Z',
+};
 
 function renderDetail(
   item = ITEM,
   {
     initialEntry = { pathname: `/equipos/${item.id}` } as { pathname: string; state?: unknown },
     retire = () => jsonResponse({ ...item, status: 'RETIRED' }),
+    events = (): Response => jsonResponse([]),
   } = {},
 ) {
   const fetchMock = stubApi({
@@ -33,6 +51,7 @@ function renderDetail(
     '/api/locations': () => jsonResponse([LOCATION_CENTRO, LOCATION_KIOSCO]),
     [`/api/equipment/${item.id}`]: () => jsonResponse(item),
     [`/api/equipment/${item.id}/retire`]: retire,
+    [`/api/equipment/${item.id}/events`]: events,
   });
   const router = createMemoryRouter(routes, { initialEntries: [initialEntry] });
   render(<RouterProvider router={router} />);
@@ -150,6 +169,54 @@ describe('EquipmentDetailPage', () => {
     );
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
     expect(fieldValue('Estado')).toHaveTextContent('Operativo');
+  });
+
+  it('shows the event history with the transfer location names', async () => {
+    renderDetail(ITEM, { events: () => jsonResponse([TRANSFER]) });
+
+    const history = await screen.findByRole('region', { name: 'Historial' });
+    const item = await within(history).findByRole('listitem');
+    expect(item).toHaveTextContent('Traslado');
+    expect(item).toHaveTextContent('Mudanza al kiosco');
+    await waitFor(() => expect(item).toHaveTextContent('Heladería Centro'));
+    expect(item).toHaveTextContent('Kiosco Plaza');
+  });
+
+  it('keeps the detail when the history fails, and retries it', async () => {
+    let calls = 0;
+    const { fetchMock } = renderDetail(ITEM, {
+      events: () => {
+        calls += 1;
+        return calls === 1
+          ? jsonResponse({ error: { message: 'Boom' } }, { status: 500 })
+          : jsonResponse([TRANSFER]);
+      },
+    });
+
+    const alert = await screen.findByText('No se pudo cargar el historial.');
+    expect(alert.closest('[role="alert"]')).not.toBeNull();
+    expect(fieldValue('Código')).toHaveTextContent('EQ-0001');
+    expect(screen.getByRole('link', { name: 'Editar' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByText('Mudanza al kiosco')).toBeInTheDocument();
+    expect(screen.queryByText('No se pudo cargar el historial.')).not.toBeInTheDocument();
+    expect(requestedPaths(fetchMock).filter((path) => path === EVENTS_PATH)).toHaveLength(2);
+  });
+
+  it('reloads the history after retiring', async () => {
+    const { fetchMock } = renderDetail();
+    expect(await screen.findByText('Todavía no hay eventos registrados.')).toBeInTheDocument();
+    expect(requestedPaths(fetchMock).filter((path) => path === EVENTS_PATH)).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
+
+    await waitFor(() =>
+      expect(requestedPaths(fetchMock).filter((path) => path === EVENTS_PATH)).toHaveLength(2),
+    );
+    expect(await screen.findByText('Todavía no hay eventos registrados.')).toBeInTheDocument();
   });
 
   it('offers no retire action for retired equipment', async () => {

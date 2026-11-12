@@ -7,6 +7,7 @@ import {
   createEquipment,
   getEquipment,
   listEquipment,
+  listEquipmentEvents,
   retireEquipment,
   updateEquipment,
 } from './equipment';
@@ -218,5 +219,46 @@ describe('retireEquipment', () => {
     stubFetch(jsonResponse({ ok: true }));
 
     await expect(retireEquipment(ID)).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('listEquipmentEvents', () => {
+  const event = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    equipmentId: ID,
+    type: 'MAINTENANCE',
+    occurredOn: '2026-10-20',
+    description: 'Limpieza de condensador',
+    technician: 'Juan Pérez',
+    cost: 1500,
+    resultingStatus: null,
+    fromLocationId: null,
+    toLocationId: null,
+    replacementEquipmentId: null,
+    createdAt: '2026-10-20T15:00:00.000Z',
+  };
+
+  it('GETs the history of one item with the given signal and returns it parsed', async () => {
+    const fetchMock = stubFetch(jsonResponse([event]));
+    const controller = new AbortController();
+
+    await expect(listEquipmentEvents(ID, { signal: controller.signal })).resolves.toEqual([event]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/equipment/${ID}/events`,
+      expect.objectContaining({ signal: controller.signal }),
+    );
+  });
+
+  it('escapes the id in the path', async () => {
+    const fetchMock = stubFetch(jsonResponse([]));
+
+    await listEquipmentEvents('a/b');
+    expect(fetchMock).toHaveBeenCalledWith('/api/equipment/a%2Fb/events', expect.anything());
+  });
+
+  it('rejects with an ApiError when an event does not match the schema', async () => {
+    stubFetch(jsonResponse([{ ...event, type: 'CLEANING' }]));
+
+    await expect(listEquipmentEvents(ID)).rejects.toBeInstanceOf(ApiError);
   });
 });
