@@ -19,10 +19,16 @@ const LOCATION_IDS = {
 
 // `Required` makes every writable column mandatory, so a sample cannot silently omit one.
 type SeedLocation = Required<
-  Omit<Prisma.LocationUncheckedCreateInput, 'createdAt' | 'updatedAt' | 'equipment'>
+  Omit<
+    Prisma.LocationUncheckedCreateInput,
+    'createdAt' | 'updatedAt' | 'equipment' | 'eventsFrom' | 'eventsTo'
+  >
 >;
 type SeedEquipment = Required<
-  Omit<Prisma.EquipmentUncheckedCreateInput, 'id' | 'createdAt' | 'updatedAt'>
+  Omit<
+    Prisma.EquipmentUncheckedCreateInput,
+    'id' | 'createdAt' | 'updatedAt' | 'events' | 'replacementEvents'
+  >
 >;
 
 const locations: SeedLocation[] = [

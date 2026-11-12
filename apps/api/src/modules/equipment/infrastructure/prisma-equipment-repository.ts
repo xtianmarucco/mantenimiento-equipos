@@ -1,6 +1,7 @@
 import {
   Prisma,
   type Equipment as EquipmentRow,
+  type EquipmentEvent as EquipmentEventRow,
   type PrismaClient,
 } from '../../../generated/prisma/client.js';
 import { omitUndefined } from '../../../shared/infrastructure/omit-undefined.js';
@@ -11,9 +12,17 @@ import type {
   EquipmentFilter,
   NewEquipment,
 } from '../domain/equipment.js';
+import type {
+  EquipmentEvent,
+  EquipmentEventEffect,
+  NewEquipmentEvent,
+  RecordedEquipmentEvent,
+} from '../domain/equipment-event.js';
 import {
   DuplicateEquipmentCodeError,
+  EquipmentEventLocationNotFoundError,
   EquipmentLocationNotFoundError,
+  ReplacementEquipmentNotFoundError,
   WarrantyBeforePurchaseError,
 } from '../domain/equipment-errors.js';
 import type { EquipmentRepository } from '../domain/equipment-repository.js';
@@ -31,6 +40,16 @@ const RECORD_NOT_FOUND = 'P2025';
  */
 const CHECK_VIOLATION_SQLSTATE = '23514';
 const WARRANTY_CHECK_CONSTRAINT = 'equipment_warranty_after_purchase_check';
+
+/**
+ * Foreign keys of `equipment_events` (Prisma's default names, migration
+ * `20261112010054_equipment_events`). `equipment_events` has several, so a violation is told
+ * apart by the constraint name the driver adapter reports.
+ */
+const EVENT_EQUIPMENT_FK = 'equipment_events_equipment_id_fkey';
+const EVENT_FROM_LOCATION_FK = 'equipment_events_from_location_id_fkey';
+const EVENT_TO_LOCATION_FK = 'equipment_events_to_location_id_fkey';
+const EVENT_REPLACEMENT_FK = 'equipment_events_replacement_equipment_id_fkey';
 
 /**
  * `DATE` columns travel as a `Date` at UTC midnight. Building and reading them in UTC keeps the
@@ -63,6 +82,24 @@ function toDomain(row: EquipmentRow): Equipment {
   };
 }
 
+function eventToDomain(row: EquipmentEventRow): EquipmentEvent {
+  return {
+    id: row.id,
+    equipmentId: row.equipmentId,
+    type: row.type,
+    occurredOn: fromDbDate(row.occurredOn),
+    description: row.description,
+    technician: row.technician,
+    // DECIMAL(10, 2) fits a double exactly enough: every value has at most 10 significant digits.
+    cost: row.cost === null ? null : row.cost.toNumber(),
+    resultingStatus: row.resultingStatus,
+    fromLocationId: row.fromLocationId,
+    toLocationId: row.toLocationId,
+    replacementEquipmentId: row.replacementEquipmentId,
+    createdAt: row.createdAt,
+  };
+}
+
 function toDbChanges(changes: EquipmentChanges): Prisma.EquipmentUncheckedUpdateInput {
   const { purchaseDate, warrantyUntil, ...rest } = omitUndefined(changes);
   return {
@@ -76,6 +113,21 @@ function toDbChanges(changes: EquipmentChanges): Prisma.EquipmentUncheckedUpdate
 
 function knownErrorCode(error: unknown): string | undefined {
   return error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined;
+}
+
+/**
+ * The constraint a foreign key violation names. Through `@prisma/adapter-pg` it arrives in
+ * `meta.driverAdapterError.cause.constraint.index`.
+ */
+function violatedForeignKey(error: unknown): string | undefined {
+  if (knownErrorCode(error) !== FOREIGN_KEY_VIOLATION) {
+    return undefined;
+  }
+  const meta = (error as Prisma.PrismaClientKnownRequestError).meta;
+  const adapterError = meta?.['driverAdapterError'] as
+    { cause?: { constraint?: { index?: unknown } } } | undefined;
+  const name = adapterError?.cause?.constraint?.index;
+  return typeof name === 'string' ? name : undefined;
 }
 
 /** True when the error is a violation of the named warranty CHECK constraint, and only that one. */
@@ -178,5 +230,63 @@ export class PrismaEquipmentRepository implements EquipmentRepository {
       }
       throw toDomainError(error, changes);
     }
+  }
+
+  /**
+   * One transaction: the event is inserted first (its foreign keys prove the equipment and every
+   * referenced record exist), then the effect is applied. Any failure rolls back both.
+   */
+  async recordEvent(
+    data: NewEquipmentEvent,
+    effect: EquipmentEventEffect,
+  ): Promise<RecordedEquipmentEvent | undefined> {
+    const changes = omitUndefined({ status: effect.status, locationId: effect.locationId });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const eventRow = await tx.equipmentEvent.create({
+          data: {
+            equipmentId: data.equipmentId,
+            type: data.type,
+            occurredOn: toDbDate(data.occurredOn),
+            description: data.description,
+            technician: data.technician ?? null,
+            cost: data.cost ?? null,
+            resultingStatus: data.resultingStatus ?? null,
+            fromLocationId: data.fromLocationId ?? null,
+            toLocationId: data.toLocationId ?? null,
+            replacementEquipmentId: data.replacementEquipmentId ?? null,
+          },
+        });
+        const equipmentRow =
+          Object.keys(changes).length === 0
+            ? await tx.equipment.findUniqueOrThrow({ where: { id: data.equipmentId } })
+            : await tx.equipment.update({ where: { id: data.equipmentId }, data: changes });
+        return { event: eventToDomain(eventRow), equipment: toDomain(equipmentRow) };
+      });
+    } catch (error) {
+      switch (violatedForeignKey(error)) {
+        case EVENT_EQUIPMENT_FK:
+          return undefined;
+        case EVENT_FROM_LOCATION_FK:
+          throw new EquipmentEventLocationNotFoundError(
+            'fromLocationId',
+            data.fromLocationId ?? '',
+          );
+        case EVENT_TO_LOCATION_FK:
+          throw new EquipmentEventLocationNotFoundError('toLocationId', data.toLocationId ?? '');
+        case EVENT_REPLACEMENT_FK:
+          throw new ReplacementEquipmentNotFoundError(data.replacementEquipmentId ?? '');
+        default:
+          throw toDomainError(error, changes);
+      }
+    }
+  }
+
+  async listEvents(equipmentId: string): Promise<EquipmentEvent[]> {
+    const rows = await this.prisma.equipmentEvent.findMany({
+      where: { equipmentId },
+      orderBy: [{ occurredOn: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+    });
+    return rows.map(eventToDomain);
   }
 }
