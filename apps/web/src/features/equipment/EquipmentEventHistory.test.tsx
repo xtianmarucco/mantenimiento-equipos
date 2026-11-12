@@ -194,6 +194,21 @@ describe('EquipmentEventHistory', () => {
     expect(within(item).queryByText('Ubicación desconocida')).not.toBeInTheDocument();
   });
 
+  it('says the transfer locations are loading while the locations load', () => {
+    const item = renderEvent(
+      makeEvent({
+        type: 'TRANSFER',
+        fromLocationId: LOCATION_CENTRO.id,
+        toLocationId: LOCATION_KIOSCO.id,
+      }),
+      { locations: { status: 'loading' } },
+    );
+
+    expect(detail(item, 'Desde')).toHaveTextContent('Cargando…');
+    expect(detail(item, 'Hacia')).toHaveTextContent('Cargando…');
+    expect(within(item).queryByText('Ubicación desconocida')).not.toBeInTheDocument();
+  });
+
   it('links to the replacement equipment', () => {
     const item = renderEvent(
       makeEvent({ type: 'REPLACEMENT', replacementEquipmentId: REPLACEMENT_ID }),
