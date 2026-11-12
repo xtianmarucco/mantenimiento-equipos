@@ -1,10 +1,13 @@
 import {
   equipmentEventResponseSchema,
   equipmentResponseSchema,
+  recordEquipmentEventResponseSchema,
+  type CreateEquipmentEventInput,
   type CreateEquipmentInput,
   type EquipmentEventResponse,
   type EquipmentListQuery,
   type EquipmentResponse,
+  type RecordEquipmentEventResponse,
   type UpdateEquipmentInput,
 } from '@mantenimiento/shared';
 import { z } from 'zod';
@@ -71,4 +74,17 @@ export function listEquipmentEvents(
   options: { signal?: AbortSignal } = {},
 ): Promise<EquipmentEventResponse[]> {
   return getJson(`${equipmentPath(id)}/events`, equipmentEventListSchema, options);
+}
+
+/**
+ * Records an event and applies its effect (status or location); resolves with the event and the
+ * equipment after it. A broken rule rejects with status 400 and field `issues`.
+ */
+export function recordEquipmentEvent(
+  id: string,
+  input: CreateEquipmentEventInput,
+): Promise<RecordEquipmentEventResponse> {
+  return sendJson('POST', `${equipmentPath(id)}/events`, recordEquipmentEventResponseSchema, {
+    body: input,
+  });
 }

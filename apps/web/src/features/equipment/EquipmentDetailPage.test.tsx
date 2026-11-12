@@ -132,6 +132,20 @@ describe('EquipmentDetailPage', () => {
     );
   });
 
+  it('links to the event form, keeping the list filters', async () => {
+    const { router } = renderDetail(ITEM, {
+      initialEntry: { pathname: `/equipos/${ITEM.id}`, state: { listSearch: 'type=FREEZER' } },
+    });
+
+    const link = await screen.findByRole('link', { name: 'Registrar evento' });
+    expect(link).toHaveAttribute('href', `/equipos/${ITEM.id}/eventos/nuevo`);
+    await userEvent.click(link);
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(`/equipos/${ITEM.id}/eventos/nuevo`),
+    );
+    expect(router.state.location.state).toEqual({ listSearch: 'type=FREEZER' });
+  });
+
   it('retires the equipment only after confirmation', async () => {
     const { fetchMock } = renderDetail();
     await screen.findByRole('heading', { level: 2, name: 'Freezer horizontal' });
@@ -224,6 +238,7 @@ describe('EquipmentDetailPage', () => {
 
     await screen.findByRole('heading', { level: 2, name: 'Freezer horizontal' });
     expect(screen.queryByRole('button', { name: 'Dar de baja' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Registrar evento' })).not.toBeInTheDocument();
     expect(screen.getByText('Este equipo está dado de baja.')).toBeInTheDocument();
   });
 

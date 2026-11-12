@@ -37,7 +37,7 @@ interface EquipmentDetailViewProps {
   /** Today as `YYYY-MM-DD`, for the warranty status. */
   today: string;
   backTo: string;
-  /** Forwarded to the edit page so its "back" links keep the list filters. */
+  /** Forwarded to the edit and event pages so their "back" links keep the list filters. */
   navigationState: EquipmentNavigationState | undefined;
   retire: RetireState;
   onRetireRequest: () => void;
@@ -51,8 +51,8 @@ const WARRANTY_LABELS = {
 } as const;
 
 /**
- * Presentational equipment detail: every field, the edit link, the retire action and the event
- * history.
+ * Presentational equipment detail: every field, the edit and "register event" links, the retire
+ * action and the event history.
  */
 export function EquipmentDetailView({
   equipment,
@@ -94,6 +94,15 @@ export function EquipmentDetailView({
         >
           Editar
         </Link>
+        {!isRetired && (
+          <Link
+            to={`/equipos/${equipment.id}/eventos/nuevo`}
+            state={navigationState}
+            className={secondaryButton}
+          >
+            Registrar evento
+          </Link>
+        )}
         {!isRetired && !showConfirmation && (
           <button type="button" className={dangerButton} onClick={onRetireRequest}>
             Dar de baja

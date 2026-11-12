@@ -47,18 +47,19 @@ export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   });
 }
 
-type RouteHandler = () => Response | Promise<Response>;
+type RouteHandler = (init: RequestInit | undefined) => Response | Promise<Response>;
 
 /**
  * Stubs `fetch` and answers by path (query string excluded): each handler builds a fresh
- * `Response`. Unknown paths answer 404. Returns the mock to inspect calls.
+ * `Response` and gets the request `init` (method, body). Unknown paths answer 404. Returns the
+ * mock to inspect calls.
  */
 export function stubApi(handlers: Record<string, RouteHandler>) {
-  const fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
+  const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), 'http://localhost');
     const handler = handlers[url.pathname];
     return Promise.resolve(
-      handler ? handler() : jsonResponse({ error: { message: 'Not found' } }, { status: 404 }),
+      handler ? handler(init) : jsonResponse({ error: { message: 'Not found' } }, { status: 404 }),
     );
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -68,4 +69,11 @@ export function stubApi(handlers: Record<string, RouteHandler>) {
 /** Paths (with query string) requested through a `stubApi` mock, in call order. */
 export function requestedPaths(fetchMock: ReturnType<typeof stubApi>): string[] {
   return fetchMock.mock.calls.map(([input]) => String(input));
+}
+
+/** JSON bodies sent with `method` through a `stubApi` mock, in call order. */
+export function sentBodies(fetchMock: ReturnType<typeof stubApi>, method: string): unknown[] {
+  return fetchMock.mock.calls
+    .filter(([, init]) => init?.method === method)
+    .map(([, init]) => JSON.parse(String(init?.body)) as unknown);
 }

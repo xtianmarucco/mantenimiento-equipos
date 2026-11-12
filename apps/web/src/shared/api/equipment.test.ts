@@ -8,6 +8,7 @@ import {
   getEquipment,
   listEquipment,
   listEquipmentEvents,
+  recordEquipmentEvent,
   retireEquipment,
   updateEquipment,
 } from './equipment';
@@ -260,5 +261,73 @@ describe('listEquipmentEvents', () => {
     stubFetch(jsonResponse([{ ...event, type: 'CLEANING' }]));
 
     await expect(listEquipmentEvents(ID)).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('recordEquipmentEvent', () => {
+  const input = {
+    type: 'RETIREMENT' as const,
+    occurredOn: '2026-11-11',
+    description: 'Sin arreglo posible',
+  };
+  const recorded = {
+    event: {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+      equipmentId: ID,
+      ...input,
+      technician: null,
+      cost: null,
+      resultingStatus: null,
+      fromLocationId: null,
+      toLocationId: null,
+      replacementEquipmentId: null,
+      createdAt: '2026-11-11T15:00:00.000Z',
+    },
+    equipment: makeEquipment({ status: 'RETIRED' }),
+  };
+
+  it('POSTs the event as JSON and returns the event with the equipment after it', async () => {
+    const fetchMock = stubFetch(jsonResponse(recorded, { status: 201 }));
+
+    await expect(recordEquipmentEvent(ID, input)).resolves.toEqual(recorded);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/equipment/${ID}/events`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(sentBody(fetchMock)).toEqual(input);
+  });
+
+  it('escapes the id in the path', async () => {
+    const fetchMock = stubFetch(jsonResponse(recorded, { status: 201 }));
+
+    await recordEquipmentEvent('a/b', input);
+    expect(fetchMock).toHaveBeenCalledWith('/api/equipment/a%2Fb/events', expect.anything());
+  });
+
+  it('exposes the issues of a 400', async () => {
+    stubFetch(
+      jsonResponse(
+        {
+          error: {
+            message: 'Date cannot be in the future',
+            issues: [{ path: 'occurredOn', message: 'Date cannot be in the future' }],
+          },
+        },
+        { status: 400 },
+      ),
+    );
+
+    const error: unknown = await recordEquipmentEvent(ID, input).catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).issues).toEqual([
+      { path: 'occurredOn', message: 'Date cannot be in the future' },
+    ]);
+  });
+
+  it('rejects with an ApiError when the response is not a recorded event', async () => {
+    stubFetch(jsonResponse(recorded.equipment, { status: 201 }));
+
+    await expect(recordEquipmentEvent(ID, input)).rejects.toBeInstanceOf(ApiError);
   });
 });
