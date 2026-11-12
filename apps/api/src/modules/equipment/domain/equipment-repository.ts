@@ -28,11 +28,11 @@ export interface EquipmentRepository {
   update(id: string, changes: EquipmentChanges): Promise<Equipment | undefined>;
   /**
    * Stores the event and applies its effect to the equipment atomically: either both are written or
-   * neither. `updatedAt` is bumped only when the effect changes something. `undefined` (and nothing
-   * stored) when no equipment has `event.equipmentId`. Unknown locations reject with
-   * `EquipmentEventLocationNotFoundError` (or `EquipmentLocationNotFoundError` for an effect
-   * location the event does not name), unknown replacement equipment with
-   * `ReplacementEquipmentNotFoundError`. Business rules (transitions, dates) are the use case's.
+   * neither. `updatedAt` is bumped for any non-empty effect (a `status` or `locationId` given), even
+   * one equal to the stored value. `undefined` (and nothing stored) when no equipment has
+   * `event.equipmentId`. Unknown locations reject with `EquipmentEventLocationNotFoundError` (or
+   * `EquipmentLocationNotFoundError` for an effect location the event does not name), unknown
+   * replacement equipment with `ReplacementEquipmentNotFoundError`. Business rules (transitions, dates) are the use case's.
    */
   recordEvent(
     event: NewEquipmentEvent,
