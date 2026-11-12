@@ -15,7 +15,11 @@ import { listLocations } from '../../shared/api/locations';
 import { isNotFound, useResource } from '../../shared/hooks/useResource';
 import { todayIsoDate } from './dates';
 import { EquipmentDetailView, type RetireState } from './EquipmentDetailView';
-import { initialEventFormValues, validateEvent } from './equipmentEventFormModel';
+import {
+  firstInvalidEventField,
+  initialEventFormValues,
+  validateEvent,
+} from './equipmentEventFormModel';
 import { EquipmentLoadStatus } from './EquipmentLoadStatus';
 import { listPath, readNavigationState } from './navigation';
 
@@ -63,34 +67,6 @@ function EquipmentDetail({ id }: { id: string }) {
   // The item as returned by the retire action; it supersedes the loaded one.
   const [retired, setRetired] = useState<EquipmentResponse | null>(null);
   const [today] = useState(() => todayIsoDate(new Date()));
-  const purchaseDate = loaded.status === 'success' ? loaded.data.purchaseDate : undefined;
-
-  const onRetireConfirm = useCallback(() => {
-    if (purchaseDate === undefined) return;
-    const result = validateEvent(
-      { ...initialEventFormValues(today), type: 'RETIREMENT', description: reason },
-      { today, purchaseDate },
-    );
-    if (!result.ok) {
-      if (result.errors.description !== undefined) {
-        setReasonError(result.errors.description);
-        setReasonFocus((previous) => previous + 1);
-      } else {
-        setRetire({ step: 'failed' });
-      }
-      return;
-    }
-    setRetire({ step: 'retiring' });
-    recordEquipmentEvent(id, result.data).then(
-      ({ equipment }) => {
-        setRetired(equipment);
-        setRetire({ step: 'done' });
-        reloadEvents();
-      },
-      () => setRetire({ step: 'failed' }),
-    );
-  }, [id, purchaseDate, reason, reloadEvents, today]);
-
   function onReasonChange(value: string) {
     setReason(value);
     // The message described the old value; drop it until the next confirmation.
@@ -101,6 +77,31 @@ function EquipmentDetail({ id }: { id: string }) {
     setRetire({ step: 'idle' });
     setReason('');
     setReasonError(undefined);
+    // Reopening focuses the confirmation itself, not the reason of an earlier error.
+    setReasonFocus(0);
+  }
+
+  function onRetired(equipment: EquipmentResponse) {
+    setRetired(equipment);
+    setRetire({ step: 'done' });
+    reloadEvents();
+  }
+
+  /**
+   * A failed retirement may still have been stored (a lost response), and repeating it is
+   * rejected because the item is already retired; the reloaded item decides which happened.
+   */
+  function confirmRetirementAfterFailure() {
+    getEquipment(id).then(
+      (equipment) => {
+        if (equipment.status === 'RETIRED') {
+          onRetired(equipment);
+        } else {
+          setRetire({ step: 'failed' });
+        }
+      },
+      () => setRetire({ step: 'failed' }),
+    );
   }
 
   if (loaded.status === 'loading') {
@@ -115,9 +116,40 @@ function EquipmentDetail({ id }: { id: string }) {
     );
   }
 
+  const equipment = retired ?? loaded.data;
+
+  // Defined after the loading states: the confirmation only exists once the item is loaded.
+  function onRetireConfirm() {
+    const result = validateEvent(
+      { ...initialEventFormValues(today), type: 'RETIREMENT', description: reason },
+      { today, purchaseDate: equipment.purchaseDate },
+    );
+    if (!result.ok) {
+      if (result.errors.description !== undefined) {
+        setReasonError(result.errors.description);
+        setReasonFocus((previous) => previous + 1);
+        return;
+      }
+      // Another field is invalid (today is before the purchase date): confirming again would fail
+      // the same way, so show why instead of offering a retry.
+      const field = firstInvalidEventField(result.errors);
+      setRetire({
+        step: 'invalid',
+        message:
+          (field && result.errors[field]) ?? 'No se puede dar de baja el equipo con estos datos.',
+      });
+      return;
+    }
+    setRetire({ step: 'retiring' });
+    recordEquipmentEvent(id, result.data).then(
+      (recorded) => onRetired(recorded.equipment),
+      confirmRetirementAfterFailure,
+    );
+  }
+
   return (
     <EquipmentDetailView
-      equipment={retired ?? loaded.data}
+      equipment={equipment}
       locations={locations}
       events={events}
       onEventsRetry={reloadEvents}

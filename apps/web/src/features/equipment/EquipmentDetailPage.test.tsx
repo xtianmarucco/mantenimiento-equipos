@@ -64,18 +64,35 @@ function renderDetail(
       return jsonResponse(retirementOf(item, body.description), { status: 201 });
     },
     events = (): Response => jsonResponse([]),
+    detail = (): Response => jsonResponse(item),
   } = {},
 ) {
   const fetchMock = stubApi({
     '/api/health': () => jsonResponse({ status: 'ok' }),
     '/api/locations': () => jsonResponse([LOCATION_CENTRO, LOCATION_KIOSCO]),
-    [`/api/equipment/${item.id}`]: () => jsonResponse(item),
+    [`/api/equipment/${item.id}`]: detail,
     [`/api/equipment/${item.id}/events`]: (init) =>
       init?.method === 'POST' ? record(init) : events(),
   });
   const router = createMemoryRouter(routes, { initialEntries: [initialEntry] });
   render(<RouterProvider router={router} />);
   return { fetchMock, router };
+}
+
+/** Answers the item on the first load and `afterRetire` on every later one. */
+function detailThen(afterRetire: () => Response): () => Response {
+  let calls = 0;
+  return () => {
+    calls += 1;
+    return calls === 1 ? jsonResponse(ITEM) : afterRetire();
+  };
+}
+
+async function confirmRetirement(reasonText = 'Sin arreglo') {
+  await screen.findByRole('heading', { level: 2, name: 'Freezer horizontal' });
+  await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+  await userEvent.type(screen.getByRole('textbox', { name: 'Motivo' }), reasonText);
+  await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 }
 
 function fieldValue(label: string): HTMLElement {
@@ -216,14 +233,10 @@ describe('EquipmentDetailPage', () => {
   });
 
   it('keeps the confirmation open with an error when retiring fails', async () => {
-    renderDetail(ITEM, {
+    const { fetchMock } = renderDetail(ITEM, {
       record: () => jsonResponse({ error: { message: 'Internal server error' } }, { status: 500 }),
     });
-    await screen.findByRole('heading', { level: 2, name: 'Freezer horizontal' });
-
-    await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
-    await userEvent.type(screen.getByRole('textbox', { name: 'Motivo' }), 'Sin arreglo');
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
+    await confirmRetirement();
 
     const dialog = screen.getByRole('alertdialog');
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
@@ -231,6 +244,98 @@ describe('EquipmentDetailPage', () => {
     );
     expect(screen.getByRole('textbox', { name: 'Motivo' })).toHaveValue('Sin arreglo');
     expect(fieldValue('Estado')).toHaveTextContent('Operativo');
+    // The failure was confirmed by reloading the item, which is still not retired.
+    expect(requestedPaths(fetchMock).filter((path) => path === DETAIL_PATH)).toHaveLength(2);
+    expect(within(dialog).getByRole('button', { name: 'Confirmar baja' })).toBeEnabled();
+  });
+
+  it('shows the failure when the reload after a failed retirement also fails', async () => {
+    renderDetail(ITEM, {
+      record: () => jsonResponse({ error: { message: 'Internal server error' } }, { status: 500 }),
+      detail: detailThen(() => jsonResponse({ error: { message: 'Boom' } }, { status: 500 })),
+    });
+    await confirmRetirement();
+
+    expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent(
+      'No se pudo dar de baja el equipo. Intente de nuevo.',
+    );
+    expect(fieldValue('Estado')).toHaveTextContent('Operativo');
+  });
+
+  it('treats a failed retirement as done when the reloaded equipment is retired', async () => {
+    const { fetchMock } = renderDetail(ITEM, {
+      // The retirement was stored but its response was lost.
+      record: () => jsonResponse({ error: { message: 'Bad gateway' } }, { status: 502 }),
+      detail: detailThen(() => jsonResponse({ ...ITEM, status: 'RETIRED' })),
+    });
+    await confirmRetirement();
+
+    expect(await screen.findByText('El equipo fue dado de baja.')).toHaveAttribute(
+      'role',
+      'status',
+    );
+    expect(fieldValue('Estado')).toHaveTextContent('Dado de baja');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(
+          ([input, init]) => String(input) === EVENTS_PATH && init?.method === undefined,
+        ),
+      ).toHaveLength(2),
+    );
+  });
+
+  it('treats the "already retired" rejection of a repeated retirement as done', async () => {
+    const { fetchMock } = renderDetail(ITEM, {
+      record: () =>
+        jsonResponse(
+          {
+            error: {
+              message: 'Validation failed',
+              issues: [{ path: 'type', message: 'Retired equipment accepts no events' }],
+            },
+          },
+          { status: 400 },
+        ),
+      detail: detailThen(() => jsonResponse({ ...ITEM, status: 'RETIRED' })),
+    });
+    await confirmRetirement();
+
+    expect(await screen.findByText('El equipo fue dado de baja.')).toBeInTheDocument();
+    expect(fieldValue('Estado')).toHaveTextContent('Dado de baja');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(sentBodies(fetchMock, 'POST')).toHaveLength(1);
+  });
+
+  it('shows the date validation message instead of a retry when today is before the purchase date', async () => {
+    const future = makeEquipment({ purchaseDate: '2099-01-01' });
+    const { fetchMock } = renderDetail(future);
+    await confirmRetirement();
+
+    const dialog = screen.getByRole('alertdialog');
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(
+      'La fecha no puede ser anterior a la fecha de compra.',
+    );
+    expect(dialog).not.toHaveTextContent('Intente de nuevo');
+    expect(
+      within(dialog).queryByRole('button', { name: 'Confirmar baja' }),
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeEnabled();
+    expect(sentBodies(fetchMock, 'POST')).toEqual([]);
+  });
+
+  it('focuses the confirmation, not the reason, when it reopens after a reason error', async () => {
+    renderDetail();
+    await screen.findByRole('heading', { level: 2, name: 'Freezer horizontal' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
+    expect(screen.getByRole('textbox', { name: 'Motivo' })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+
+    expect(screen.getByRole('alertdialog')).toHaveFocus();
   });
 
   it('shows the event history with the transfer location names', async () => {

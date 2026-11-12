@@ -27,6 +27,8 @@ export type RetireState =
   | { step: 'confirming' }
   | { step: 'retiring' }
   | { step: 'failed' }
+  /** Rejected before sending for a reason a retry cannot fix; `message` says why. */
+  | { step: 'invalid'; message: string }
   | { step: 'done' };
 
 interface EquipmentDetailViewProps {
@@ -81,7 +83,10 @@ export function EquipmentDetailView({
   const isRetired = equipment.status === 'RETIRED';
   const showConfirmation =
     !isRetired &&
-    (retire.step === 'confirming' || retire.step === 'retiring' || retire.step === 'failed');
+    (retire.step === 'confirming' ||
+      retire.step === 'retiring' ||
+      retire.step === 'failed' ||
+      retire.step === 'invalid');
 
   return (
     <section className="space-y-4">
@@ -136,6 +141,7 @@ export function EquipmentDetailView({
         <RetireConfirmation
           retiring={retire.step === 'retiring'}
           failed={retire.step === 'failed'}
+          invalidMessage={retire.step === 'invalid' ? retire.message : undefined}
           reason={retireReason}
           reasonError={retireReasonError}
           reasonFocus={retireReasonFocus}
@@ -223,6 +229,8 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 interface RetireConfirmationProps {
   retiring: boolean;
   failed: boolean;
+  /** Why the retirement cannot be confirmed; hides the confirm button. */
+  invalidMessage: string | undefined;
   reason: string;
   reasonError: string | undefined;
   reasonFocus: number;
@@ -238,6 +246,7 @@ interface RetireConfirmationProps {
 function RetireConfirmation({
   retiring,
   failed,
+  invalidMessage,
   reason,
   reasonError,
   reasonFocus,
@@ -290,10 +299,17 @@ function RetireConfirmation({
           No se pudo dar de baja el equipo. Intente de nuevo.
         </p>
       )}
+      {invalidMessage !== undefined && (
+        <p role="alert" className={errorBox}>
+          {invalidMessage}
+        </p>
+      )}
       <div className="flex flex-wrap gap-3">
-        <button type="button" className={dangerButton} onClick={onConfirm} disabled={retiring}>
-          {retiring ? 'Dando de baja…' : 'Confirmar baja'}
-        </button>
+        {invalidMessage === undefined && (
+          <button type="button" className={dangerButton} onClick={onConfirm} disabled={retiring}>
+            {retiring ? 'Dando de baja…' : 'Confirmar baja'}
+          </button>
+        )}
         <button type="button" className={secondaryButton} onClick={onCancel} disabled={retiring}>
           Cancelar
         </button>
