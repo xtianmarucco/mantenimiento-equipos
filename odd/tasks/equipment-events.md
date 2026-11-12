@@ -55,6 +55,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 ## Tasks
 
 - [x] T1 Shared: event type enum, discriminated create-event schema, event response schema; tests. (Additive only, so every slice keeps api and web green.) Commit `62792d2`.
+- [ ] T1.1 Follow-up (slice 01 review, non-blocking): R3-length-boundaries (SUGGESTION) accept cases at exactly 1000 characters for `description` and exactly 120 for `technician` (`packages/shared/src/equipment-event.test.ts:90-103`). Done in slice 02 alongside T2.
 - [ ] T2 API persistence: Prisma `EquipmentEvent` model + migration, enum parity, repository "record event" (atomic event + equipment change) and "list events" in the port, in-memory and Prisma adapters, contract tests (unit + integration).
 - [ ] T3 API behavior: record/list event use cases with transition rules, `GET`/`POST /api/equipment/:id/events`, seed events, README.
 - [ ] T4 Web history: events API client and history section on the equipment detail page.
@@ -87,6 +88,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 
 - 2026-11-11: Exploration done (read-only explorer). User decisions: events drive status/location; status/location only through events; event type table approved; `feature-branch-chain`. Feature document created. Engram mirror `odd/equipment-events/tasks` pending (Engram writes rejected: host session registration).
 - 2026-11-11: T1 done (`62792d2`). RED: `pnpm --filter @mantenimiento/shared test` failed 23 of 85 tests (event exports undefined) before the implementation; GREEN: 85 of 85 passed. `pnpm typecheck`, `pnpm lint` and `pnpm exec prettier --check packages/shared odd` pass. Choices: description max 1000 (as equipment notes), technician max 120, cost non-negative with two decimals and at most 99,999,999.99 (T2 should store it as `DECIMAL(10, 2)`); unknown keys and fields of other event types are stripped, like the existing create schemas.
+- 2026-11-11: Slice 01 native review (`--base-ref origin/feat/monorepo-scaffold --committed-only`, `.atl/` excluded locally via `.git/info/exclude`): medium, `slice_budget_reached`, consent granted, reliability lens approved, acknowledged. Reviewed boundary `c9e9271`. Advisory R3-length-boundaries recorded as T1.1.
 
 ## Next step
 
