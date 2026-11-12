@@ -11,8 +11,10 @@ import {
   LOCATION_KIOSCO,
   makeEquipment,
   requestedPaths,
+  sentBodies,
   stubApi,
 } from '../../test/fixtures';
+import { todayIsoDate } from './dates';
 
 const ITEM = makeEquipment({
   serialNumber: 'SN-123',
@@ -38,11 +40,29 @@ const TRANSFER: EquipmentEventResponse = {
   createdAt: '2026-10-20T15:00:00.000Z',
 };
 
+function retirementOf(item: typeof ITEM, description: string) {
+  return {
+    event: {
+      ...TRANSFER,
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2',
+      type: 'RETIREMENT',
+      occurredOn: todayIsoDate(new Date()),
+      description,
+      fromLocationId: null,
+      toLocationId: null,
+    },
+    equipment: { ...item, status: 'RETIRED' },
+  };
+}
+
 function renderDetail(
   item = ITEM,
   {
     initialEntry = { pathname: `/equipos/${item.id}` } as { pathname: string; state?: unknown },
-    retire = () => jsonResponse({ ...item, status: 'RETIRED' }),
+    record = (init: RequestInit | undefined): Response => {
+      const body = JSON.parse(String(init?.body)) as { description: string };
+      return jsonResponse(retirementOf(item, body.description), { status: 201 });
+    },
     events = (): Response => jsonResponse([]),
   } = {},
 ) {
@@ -50,8 +70,8 @@ function renderDetail(
     '/api/health': () => jsonResponse({ status: 'ok' }),
     '/api/locations': () => jsonResponse([LOCATION_CENTRO, LOCATION_KIOSCO]),
     [`/api/equipment/${item.id}`]: () => jsonResponse(item),
-    [`/api/equipment/${item.id}/retire`]: retire,
-    [`/api/equipment/${item.id}/events`]: events,
+    [`/api/equipment/${item.id}/events`]: (init) =>
+      init?.method === 'POST' ? record(init) : events(),
   });
   const router = createMemoryRouter(routes, { initialEntries: [initialEntry] });
   render(<RouterProvider router={router} />);
@@ -146,42 +166,70 @@ describe('EquipmentDetailPage', () => {
     expect(router.state.location.state).toEqual({ listSearch: 'type=FREEZER' });
   });
 
-  it('retires the equipment only after confirmation', async () => {
+  it('retires the equipment with a reason, only after confirmation', async () => {
     const { fetchMock } = renderDetail();
     await screen.findByRole('heading', { level: 2, name: 'Freezer horizontal' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
     const dialog = screen.getByRole('alertdialog', { name: '¿Dar de baja este equipo?' });
-    expect(requestedPaths(fetchMock)).not.toContain(`${DETAIL_PATH}/retire`);
+    expect(dialog).toHaveTextContent('La baja es definitiva');
+    expect(sentBodies(fetchMock, 'POST')).toEqual([]);
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(requestedPaths(fetchMock)).not.toContain(`${DETAIL_PATH}/retire`);
+    expect(sentBodies(fetchMock, 'POST')).toEqual([]);
 
     await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Motivo' }), ' Sin arreglo posible ');
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
     await waitFor(() => expect(fieldValue('Estado')).toHaveTextContent('Dado de baja'));
-    expect(requestedPaths(fetchMock).filter((path) => path.endsWith('/retire'))).toEqual([
-      `${DETAIL_PATH}/retire`,
+    expect(sentBodies(fetchMock, 'POST')).toEqual([
+      {
+        type: 'RETIREMENT',
+        occurredOn: todayIsoDate(new Date()),
+        description: 'Sin arreglo posible',
+      },
     ]);
+    expect(requestedPaths(fetchMock)).not.toContain(`${DETAIL_PATH}/retire`);
     expect(screen.queryByRole('button', { name: 'Dar de baja' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Registrar evento' })).not.toBeInTheDocument();
     expect(screen.getByText('El equipo fue dado de baja.')).toHaveAttribute('role', 'status');
+  });
+
+  it('asks for the reason before retiring', async () => {
+    const { fetchMock } = renderDetail();
+    await screen.findByRole('heading', { level: 2, name: 'Freezer horizontal' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Motivo' }), '   ');
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
+
+    const reason = screen.getByRole('textbox', { name: 'Motivo' });
+    expect(reason).toHaveAttribute('aria-invalid', 'true');
+    expect(reason).toHaveAccessibleDescription('Ingrese el motivo.');
+    expect(reason).toHaveFocus();
+    expect(sentBodies(fetchMock, 'POST')).toEqual([]);
+
+    await userEvent.type(reason, 'x');
+    expect(reason).not.toHaveAttribute('aria-invalid');
   });
 
   it('keeps the confirmation open with an error when retiring fails', async () => {
     renderDetail(ITEM, {
-      retire: () => jsonResponse({ error: { message: 'Internal server error' } }, { status: 500 }),
+      record: () => jsonResponse({ error: { message: 'Internal server error' } }, { status: 500 }),
     });
     await screen.findByRole('heading', { level: 2, name: 'Freezer horizontal' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Motivo' }), 'Sin arreglo');
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    const dialog = screen.getByRole('alertdialog');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       'No se pudo dar de baja el equipo. Intente de nuevo.',
     );
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Motivo' })).toHaveValue('Sin arreglo');
     expect(fieldValue('Estado')).toHaveTextContent('Operativo');
   });
 
@@ -225,12 +273,16 @@ describe('EquipmentDetailPage', () => {
     expect(requestedPaths(fetchMock).filter((path) => path === EVENTS_PATH)).toHaveLength(1);
 
     await userEvent.click(screen.getByRole('button', { name: 'Dar de baja' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Motivo' }), 'Sin arreglo');
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar baja' }));
 
     await waitFor(() =>
-      expect(requestedPaths(fetchMock).filter((path) => path === EVENTS_PATH)).toHaveLength(2),
+      expect(
+        fetchMock.mock.calls.filter(
+          ([input, init]) => String(input) === EVENTS_PATH && init?.method === undefined,
+        ),
+      ).toHaveLength(2),
     );
-    expect(await screen.findByText('Todavía no hay eventos registrados.')).toBeInTheDocument();
   });
 
   it('offers no retire action for retired equipment', async () => {

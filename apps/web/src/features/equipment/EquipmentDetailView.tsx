@@ -16,6 +16,7 @@ import {
 } from '../../shared/ui/styles';
 import { formatDate, formatDateTime, warrantyStatus } from './dates';
 import { EquipmentEventHistory } from './EquipmentEventHistory';
+import { TextAreaField } from './FormFields';
 import { LOCATION_KIND_LABELS, STATUS_LABELS, TYPE_LABELS } from './labels';
 import type { EquipmentNavigationState } from './navigation';
 import { StatusBadge } from './StatusBadge';
@@ -40,6 +41,12 @@ interface EquipmentDetailViewProps {
   /** Forwarded to the edit and event pages so their "back" links keep the list filters. */
   navigationState: EquipmentNavigationState | undefined;
   retire: RetireState;
+  /** The reason typed in the retire confirmation, sent as the retirement's description. */
+  retireReason: string;
+  retireReasonError: string | undefined;
+  /** A new value moves focus to the reason field (after a validation error). */
+  retireReasonFocus: number;
+  onRetireReasonChange: (value: string) => void;
   onRetireRequest: () => void;
   onRetireCancel: () => void;
   onRetireConfirm: () => void;
@@ -63,6 +70,10 @@ export function EquipmentDetailView({
   backTo,
   navigationState,
   retire,
+  retireReason,
+  retireReasonError,
+  retireReasonFocus,
+  onRetireReasonChange,
   onRetireRequest,
   onRetireCancel,
   onRetireConfirm,
@@ -125,6 +136,10 @@ export function EquipmentDetailView({
         <RetireConfirmation
           retiring={retire.step === 'retiring'}
           failed={retire.step === 'failed'}
+          reason={retireReason}
+          reasonError={retireReasonError}
+          reasonFocus={retireReasonFocus}
+          onReasonChange={onRetireReasonChange}
           onCancel={onRetireCancel}
           onConfirm={onRetireConfirm}
         />
@@ -208,19 +223,42 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 interface RetireConfirmationProps {
   retiring: boolean;
   failed: boolean;
+  reason: string;
+  reasonError: string | undefined;
+  reasonFocus: number;
+  onReasonChange: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }
 
-/** Inline confirmation step for retiring; takes focus when it opens. */
-function RetireConfirmation({ retiring, failed, onCancel, onConfirm }: RetireConfirmationProps) {
+/**
+ * Inline confirmation step for retiring, with the required reason; takes focus when it opens, and
+ * moves it to the reason when `reasonFocus` changes.
+ */
+function RetireConfirmation({
+  retiring,
+  failed,
+  reason,
+  reasonError,
+  reasonFocus,
+  onReasonChange,
+  onCancel,
+  onConfirm,
+}: RetireConfirmationProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const reasonId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     panelRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (reasonFocus > 0) {
+      document.getElementById(reasonId)?.focus();
+    }
+  }, [reasonFocus, reasonId]);
 
   return (
     <div
@@ -236,8 +274,17 @@ function RetireConfirmation({ retiring, failed, onCancel, onConfirm }: RetireCon
       </h3>
       <p id={descriptionId} className="text-slate-700">
         El equipo pasará al estado “Dado de baja” y dejará de aparecer en la lista de equipos
-        activos. Podrá volver a ponerlo en servicio editando su estado.
+        activos. La baja es definitiva: el equipo no admitirá más eventos.
       </p>
+      <TextAreaField
+        id={reasonId}
+        name="reason"
+        label="Motivo"
+        rows={3}
+        value={reason}
+        error={reasonError}
+        onValue={onReasonChange}
+      />
       {failed && (
         <p role="alert" className={errorBox}>
           No se pudo dar de baja el equipo. Intente de nuevo.

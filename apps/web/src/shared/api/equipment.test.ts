@@ -9,7 +9,6 @@ import {
   listEquipment,
   listEquipmentEvents,
   recordEquipmentEvent,
-  retireEquipment,
   updateEquipment,
 } from './equipment';
 
@@ -199,27 +198,6 @@ describe('updateEquipment', () => {
       expect.objectContaining({ method: 'PATCH' }),
     );
     expect(sentBody(fetchMock)).toEqual({ name: 'Otro nombre', notes: null });
-  });
-});
-
-describe('retireEquipment', () => {
-  it('POSTs to the retire action without a body and returns the retired item', async () => {
-    const retired = makeEquipment({ status: 'RETIRED' });
-    const fetchMock = stubFetch(jsonResponse(retired));
-
-    await expect(retireEquipment(ID)).resolves.toEqual(retired);
-    expect(fetchMock).toHaveBeenCalledWith(
-      `/api/equipment/${ID}/retire`,
-      expect.objectContaining({ method: 'POST' }),
-    );
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(init.body).toBeUndefined();
-  });
-
-  it('rejects with an ApiError when the response is not an equipment item', async () => {
-    stubFetch(jsonResponse({ ok: true }));
-
-    await expect(retireEquipment(ID)).rejects.toBeInstanceOf(ApiError);
   });
 });
 

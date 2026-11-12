@@ -63,11 +63,6 @@ export function updateEquipment(
   return sendJson('PATCH', equipmentPath(id), equipmentResponseSchema, { body: changes });
 }
 
-/** Retires equipment (status `RETIRED`); retiring it again is a no-op. */
-export function retireEquipment(id: string): Promise<EquipmentResponse> {
-  return sendJson('POST', `${equipmentPath(id)}/retire`, equipmentResponseSchema);
-}
-
 /** Lists the event history of one item, newest first; a missing id rejects with status 404. */
 export function listEquipmentEvents(
   id: string,

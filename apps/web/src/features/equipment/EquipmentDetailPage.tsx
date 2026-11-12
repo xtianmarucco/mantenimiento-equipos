@@ -6,11 +6,16 @@ import {
 import { useCallback, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 
-import { getEquipment, listEquipmentEvents, retireEquipment } from '../../shared/api/equipment';
+import {
+  getEquipment,
+  listEquipmentEvents,
+  recordEquipmentEvent,
+} from '../../shared/api/equipment';
 import { listLocations } from '../../shared/api/locations';
 import { isNotFound, useResource } from '../../shared/hooks/useResource';
 import { todayIsoDate } from './dates';
 import { EquipmentDetailView, type RetireState } from './EquipmentDetailView';
+import { initialEventFormValues, validateEvent } from './equipmentEventFormModel';
 import { EquipmentLoadStatus } from './EquipmentLoadStatus';
 import { listPath, readNavigationState } from './navigation';
 
@@ -27,7 +32,10 @@ export function EquipmentDetailPage() {
   return <EquipmentDetail key={id} id={id} />;
 }
 
-/** Container: loads the item, the locations and the event history, and runs the retire action. */
+/**
+ * Container: loads the item, the locations and the event history, and runs the retire action (a
+ * `RETIREMENT` event dated today, with the reason as its description).
+ */
 function EquipmentDetail({ id }: { id: string }) {
   const navigationState = readNavigationState(useLocation().state);
   const backTo = listPath(navigationState);
@@ -48,20 +56,52 @@ function EquipmentDetail({ id }: { id: string }) {
     [id],
   );
   const [retire, setRetire] = useState<RetireState>({ step: 'idle' });
+  const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState<string | undefined>(undefined);
+  // A new value asks the confirmation to focus the reason field.
+  const [reasonFocus, setReasonFocus] = useState(0);
   // The item as returned by the retire action; it supersedes the loaded one.
   const [retired, setRetired] = useState<EquipmentResponse | null>(null);
+  const [today] = useState(() => todayIsoDate(new Date()));
+  const purchaseDate = loaded.status === 'success' ? loaded.data.purchaseDate : undefined;
 
   const onRetireConfirm = useCallback(() => {
+    if (purchaseDate === undefined) return;
+    const result = validateEvent(
+      { ...initialEventFormValues(today), type: 'RETIREMENT', description: reason },
+      { today, purchaseDate },
+    );
+    if (!result.ok) {
+      if (result.errors.description !== undefined) {
+        setReasonError(result.errors.description);
+        setReasonFocus((previous) => previous + 1);
+      } else {
+        setRetire({ step: 'failed' });
+      }
+      return;
+    }
     setRetire({ step: 'retiring' });
-    retireEquipment(id).then(
-      (item) => {
-        setRetired(item);
+    recordEquipmentEvent(id, result.data).then(
+      ({ equipment }) => {
+        setRetired(equipment);
         setRetire({ step: 'done' });
         reloadEvents();
       },
       () => setRetire({ step: 'failed' }),
     );
-  }, [id, reloadEvents]);
+  }, [id, purchaseDate, reason, reloadEvents, today]);
+
+  function onReasonChange(value: string) {
+    setReason(value);
+    // The message described the old value; drop it until the next confirmation.
+    setReasonError(undefined);
+  }
+
+  function onRetireCancel() {
+    setRetire({ step: 'idle' });
+    setReason('');
+    setReasonError(undefined);
+  }
 
   if (loaded.status === 'loading') {
     return <EquipmentLoadStatus state={{ status: 'loading' }} backTo={backTo} />;
@@ -81,12 +121,16 @@ function EquipmentDetail({ id }: { id: string }) {
       locations={locations}
       events={events}
       onEventsRetry={reloadEvents}
-      today={todayIsoDate(new Date())}
+      today={today}
       backTo={backTo}
       navigationState={navigationState}
       retire={retire}
+      retireReason={reason}
+      retireReasonError={reasonError}
+      retireReasonFocus={reasonFocus}
+      onRetireReasonChange={onReasonChange}
       onRetireRequest={() => setRetire({ step: 'confirming' })}
-      onRetireCancel={() => setRetire({ step: 'idle' })}
+      onRetireCancel={onRetireCancel}
       onRetireConfirm={onRetireConfirm}
     />
   );
