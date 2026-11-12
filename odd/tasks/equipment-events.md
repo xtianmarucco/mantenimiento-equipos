@@ -54,7 +54,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 
 ## Tasks
 
-- [ ] T1 Shared: event type enum, discriminated create-event schema, event response schema; tests. (Additive only, so every slice keeps api and web green.)
+- [x] T1 Shared: event type enum, discriminated create-event schema, event response schema; tests. (Additive only, so every slice keeps api and web green.) Commit `62792d2`.
 - [ ] T2 API persistence: Prisma `EquipmentEvent` model + migration, enum parity, repository "record event" (atomic event + equipment change) and "list events" in the port, in-memory and Prisma adapters, contract tests (unit + integration).
 - [ ] T3 API behavior: record/list event use cases with transition rules, `GET`/`POST /api/equipment/:id/events`, seed events, README.
 - [ ] T4 Web history: events API client and history section on the equipment detail page.
@@ -69,6 +69,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 ## Routing
 
 - Route: delegated direct per task (writer trigger: 2+ non-trivial files per task).
+- T1: delegated direct (writer).
 
 ## Delivery
 
@@ -85,7 +86,8 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 ## Progress
 
 - 2026-11-11: Exploration done (read-only explorer). User decisions: events drive status/location; status/location only through events; event type table approved; `feature-branch-chain`. Feature document created. Engram mirror `odd/equipment-events/tasks` pending (Engram writes rejected: host session registration).
+- 2026-11-11: T1 done (`62792d2`). RED: `pnpm --filter @mantenimiento/shared test` failed 23 of 85 tests (event exports undefined) before the implementation; GREEN: 85 of 85 passed. `pnpm typecheck`, `pnpm lint` and `pnpm exec prettier --check packages/shared odd` pass. Choices: description max 1000 (as equipment notes), technician max 120, cost non-negative with two decimals and at most 99,999,999.99 (T2 should store it as `DECIMAL(10, 2)`); unknown keys and fields of other event types are stripped, like the existing create schemas.
 
 ## Next step
 
-Start T1 on `feat/equipment-events-01-shared`.
+Start T2 on `feat/equipment-events-02-persistence`.
