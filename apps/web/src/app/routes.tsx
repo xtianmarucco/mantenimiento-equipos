@@ -1,6 +1,7 @@
 import { Navigate, type RouteObject } from 'react-router';
 
 import { EquipmentDetailPage } from '../features/equipment/EquipmentDetailPage';
+import { EquipmentEventFormPage } from '../features/equipment/EquipmentEventFormPage';
 import { EquipmentCreatePage, EquipmentEditPage } from '../features/equipment/EquipmentFormPage';
 import { EquipmentListPage } from '../features/equipment/EquipmentListPage';
 import { LocationCreatePage, LocationEditPage } from '../features/equipment/LocationFormPage';
@@ -21,6 +22,7 @@ export const routes: RouteObject[] = [
       { path: 'equipos/nuevo', element: <EquipmentCreatePage /> },
       { path: 'equipos/:id', element: <EquipmentDetailPage /> },
       { path: 'equipos/:id/editar', element: <EquipmentEditPage /> },
+      { path: 'equipos/:id/eventos/nuevo', element: <EquipmentEventFormPage /> },
       { path: 'ubicaciones', element: <LocationListPage /> },
       { path: 'ubicaciones/nuevo', element: <LocationCreatePage /> },
       { path: 'ubicaciones/:id/editar', element: <LocationEditPage /> },

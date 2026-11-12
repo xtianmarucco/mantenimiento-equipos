@@ -139,11 +139,27 @@ describe('createEquipmentSchema', () => {
 
 describe('updateEquipmentSchema', () => {
   it('accepts a partial update', () => {
-    expect(updateEquipmentSchema.parse({ status: 'IN_REPAIR' })).toEqual({ status: 'IN_REPAIR' });
+    expect(updateEquipmentSchema.parse({ brand: 'Gafa' })).toEqual({ brand: 'Gafa' });
   });
 
   it('does not apply the create default for status', () => {
     expect(updateEquipmentSchema.parse({ name: 'Freezer 2' })).toEqual({ name: 'Freezer 2' });
+  });
+
+  it.each([
+    ['status', 'IN_REPAIR', 'Status changes only through equipment events'],
+    ['locationId', locationId, 'Location changes only through equipment events'],
+  ])('rejects %s: it changes only through events', (field, value, message) => {
+    const result = updateEquipmentSchema.safeParse({ name: 'Freezer 2', [field]: value });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toEqual([expect.objectContaining({ path: [field], message })]);
+  });
+
+  it('still drops other unknown keys', () => {
+    expect(updateEquipmentSchema.parse({ name: 'Freezer 2', color: 'red' })).toEqual({
+      name: 'Freezer 2',
+    });
   });
 
   it('accepts null to clear the warranty', () => {

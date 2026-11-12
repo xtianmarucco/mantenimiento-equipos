@@ -19,7 +19,6 @@ import type { GetEquipmentUseCase } from '../application/get-equipment.js';
 import type { ListEquipmentUseCase } from '../application/list-equipment.js';
 import type { ListEquipmentEventsUseCase } from '../application/list-equipment-events.js';
 import type { RecordEquipmentEventUseCase } from '../application/record-equipment-event.js';
-import type { RetireEquipmentUseCase } from '../application/retire-equipment.js';
 import type { UpdateEquipmentUseCase } from '../application/update-equipment.js';
 import type { Equipment } from '../domain/equipment.js';
 import type { EquipmentEvent, RecordedEquipmentEvent } from '../domain/equipment-event.js';
@@ -29,7 +28,6 @@ export interface EquipmentUseCases {
   getEquipment: GetEquipmentUseCase;
   createEquipment: CreateEquipmentUseCase;
   updateEquipment: UpdateEquipmentUseCase;
-  retireEquipment: RetireEquipmentUseCase;
   listEquipmentEvents: ListEquipmentEventsUseCase;
   recordEquipmentEvent: RecordEquipmentEventUseCase;
 }
@@ -59,10 +57,11 @@ function toRecordedResponse(recorded: RecordedEquipmentEvent): RecordEquipmentEv
 }
 
 /**
- * HTTP adapter for the equipment module, mounted under `/api/equipment`. There is no DELETE:
- * `POST /:id/retire` (status `RETIRED`) replaces it, and the list leaves retired equipment out
+ * HTTP adapter for the equipment module, mounted under `/api/equipment`. There is no DELETE: a
+ * `RETIREMENT` event (status `RETIRED`) replaces it, and the list leaves retired equipment out
  * unless `status=RETIRED` is asked for. `GET`/`POST /:id/events` read and append the equipment's
- * history; recording an event applies its effect (status or location) in the same write.
+ * history; recording an event applies its effect (status or location) in the same write, and it is
+ * the only way to change either: `PATCH /:id` rejects `status` and `locationId`.
  */
 export function createEquipmentRouter(useCases: EquipmentUseCases): Router {
   const router = Router();
@@ -89,12 +88,6 @@ export function createEquipmentRouter(useCases: EquipmentUseCases): Router {
     const id = parseRequest(idSchema, req.params.id, INVALID_ID);
     const changes = parseRequest(updateEquipmentSchema, req.body, INVALID_BODY);
     const item = await useCases.updateEquipment.execute(id, changes);
-    res.status(200).json(toResponse(item));
-  });
-
-  router.post('/:id/retire', async (req, res) => {
-    const id = parseRequest(idSchema, req.params.id, INVALID_ID);
-    const item = await useCases.retireEquipment.execute(id);
     res.status(200).json(toResponse(item));
   });
 

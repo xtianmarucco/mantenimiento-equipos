@@ -237,6 +237,8 @@ describe('EquipmentEditPage', () => {
 
     const name = await screen.findByRole('textbox', { name: 'Nombre' });
     expect(name).toHaveValue('Freezer horizontal');
+    expect(screen.queryByRole('combobox', { name: 'Ubicación' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Estado' })).not.toBeInTheDocument();
     await userEvent.clear(name);
     await userEvent.type(name, 'Freezer vertical');
     await userEvent.clear(screen.getByRole('textbox', { name: 'Notas (opcional)' }));

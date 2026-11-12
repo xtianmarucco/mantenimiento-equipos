@@ -16,6 +16,7 @@ import {
 } from '../../shared/ui/styles';
 import { formatDate, formatDateTime, warrantyStatus } from './dates';
 import { EquipmentEventHistory } from './EquipmentEventHistory';
+import { TextAreaField } from './FormFields';
 import { LOCATION_KIND_LABELS, STATUS_LABELS, TYPE_LABELS } from './labels';
 import type { EquipmentNavigationState } from './navigation';
 import { StatusBadge } from './StatusBadge';
@@ -26,6 +27,8 @@ export type RetireState =
   | { step: 'confirming' }
   | { step: 'retiring' }
   | { step: 'failed' }
+  /** Rejected before sending for a reason a retry cannot fix; `message` says why. */
+  | { step: 'invalid'; message: string }
   | { step: 'done' };
 
 interface EquipmentDetailViewProps {
@@ -37,9 +40,15 @@ interface EquipmentDetailViewProps {
   /** Today as `YYYY-MM-DD`, for the warranty status. */
   today: string;
   backTo: string;
-  /** Forwarded to the edit page so its "back" links keep the list filters. */
+  /** Forwarded to the edit and event pages so their "back" links keep the list filters. */
   navigationState: EquipmentNavigationState | undefined;
   retire: RetireState;
+  /** The reason typed in the retire confirmation, sent as the retirement's description. */
+  retireReason: string;
+  retireReasonError: string | undefined;
+  /** A new value moves focus to the reason field (after a validation error). */
+  retireReasonFocus: number;
+  onRetireReasonChange: (value: string) => void;
   onRetireRequest: () => void;
   onRetireCancel: () => void;
   onRetireConfirm: () => void;
@@ -51,8 +60,8 @@ const WARRANTY_LABELS = {
 } as const;
 
 /**
- * Presentational equipment detail: every field, the edit link, the retire action and the event
- * history.
+ * Presentational equipment detail: every field, the edit and "register event" links, the retire
+ * action and the event history.
  */
 export function EquipmentDetailView({
   equipment,
@@ -63,6 +72,10 @@ export function EquipmentDetailView({
   backTo,
   navigationState,
   retire,
+  retireReason,
+  retireReasonError,
+  retireReasonFocus,
+  onRetireReasonChange,
   onRetireRequest,
   onRetireCancel,
   onRetireConfirm,
@@ -70,7 +83,10 @@ export function EquipmentDetailView({
   const isRetired = equipment.status === 'RETIRED';
   const showConfirmation =
     !isRetired &&
-    (retire.step === 'confirming' || retire.step === 'retiring' || retire.step === 'failed');
+    (retire.step === 'confirming' ||
+      retire.step === 'retiring' ||
+      retire.step === 'failed' ||
+      retire.step === 'invalid');
 
   return (
     <section className="space-y-4">
@@ -94,6 +110,15 @@ export function EquipmentDetailView({
         >
           Editar
         </Link>
+        {!isRetired && (
+          <Link
+            to={`/equipos/${equipment.id}/eventos/nuevo`}
+            state={navigationState}
+            className={secondaryButton}
+          >
+            Registrar evento
+          </Link>
+        )}
         {!isRetired && !showConfirmation && (
           <button type="button" className={dangerButton} onClick={onRetireRequest}>
             Dar de baja
@@ -116,6 +141,11 @@ export function EquipmentDetailView({
         <RetireConfirmation
           retiring={retire.step === 'retiring'}
           failed={retire.step === 'failed'}
+          invalidMessage={retire.step === 'invalid' ? retire.message : undefined}
+          reason={retireReason}
+          reasonError={retireReasonError}
+          reasonFocus={retireReasonFocus}
+          onReasonChange={onRetireReasonChange}
           onCancel={onRetireCancel}
           onConfirm={onRetireConfirm}
         />
@@ -199,19 +229,45 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 interface RetireConfirmationProps {
   retiring: boolean;
   failed: boolean;
+  /** Why the retirement cannot be confirmed; hides the confirm button. */
+  invalidMessage: string | undefined;
+  reason: string;
+  reasonError: string | undefined;
+  reasonFocus: number;
+  onReasonChange: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }
 
-/** Inline confirmation step for retiring; takes focus when it opens. */
-function RetireConfirmation({ retiring, failed, onCancel, onConfirm }: RetireConfirmationProps) {
+/**
+ * Inline confirmation step for retiring, with the required reason; takes focus when it opens, and
+ * moves it to the reason when `reasonFocus` changes.
+ */
+function RetireConfirmation({
+  retiring,
+  failed,
+  invalidMessage,
+  reason,
+  reasonError,
+  reasonFocus,
+  onReasonChange,
+  onCancel,
+  onConfirm,
+}: RetireConfirmationProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const reasonId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     panelRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (reasonFocus > 0) {
+      document.getElementById(reasonId)?.focus();
+    }
+  }, [reasonFocus, reasonId]);
 
   return (
     <div
@@ -227,17 +283,33 @@ function RetireConfirmation({ retiring, failed, onCancel, onConfirm }: RetireCon
       </h3>
       <p id={descriptionId} className="text-slate-700">
         El equipo pasará al estado “Dado de baja” y dejará de aparecer en la lista de equipos
-        activos. Podrá volver a ponerlo en servicio editando su estado.
+        activos. La baja es definitiva: el equipo no admitirá más eventos.
       </p>
+      <TextAreaField
+        id={reasonId}
+        name="reason"
+        label="Motivo"
+        rows={3}
+        value={reason}
+        error={reasonError}
+        onValue={onReasonChange}
+      />
       {failed && (
         <p role="alert" className={errorBox}>
           No se pudo dar de baja el equipo. Intente de nuevo.
         </p>
       )}
+      {invalidMessage !== undefined && (
+        <p role="alert" className={errorBox}>
+          {invalidMessage}
+        </p>
+      )}
       <div className="flex flex-wrap gap-3">
-        <button type="button" className={dangerButton} onClick={onConfirm} disabled={retiring}>
-          {retiring ? 'Dando de baja…' : 'Confirmar baja'}
-        </button>
+        {invalidMessage === undefined && (
+          <button type="button" className={dangerButton} onClick={onConfirm} disabled={retiring}>
+            {retiring ? 'Dando de baja…' : 'Confirmar baja'}
+          </button>
+        )}
         <button type="button" className={secondaryButton} onClick={onCancel} disabled={retiring}>
           Cancelar
         </button>

@@ -84,12 +84,31 @@ export const createEquipmentSchema = z
 export type CreateEquipmentInput = z.input<typeof createEquipmentSchema>;
 export type CreateEquipment = z.infer<typeof createEquipmentSchema>;
 
-/** Body of `PATCH /api/equipment/:id`: any subset of the create fields, at least one. */
+/**
+ * A key the PATCH must not carry: status and location change only through equipment events
+ * (`POST /api/equipment/:id/events`). Sending one is a 400 at that key, unlike other unknown keys,
+ * which are dropped, so a client relying on the old PATCH learns it instead of failing silently.
+ */
+function changedOnlyThroughEvents(what: string) {
+  return z.undefined({ error: `${what} changes only through equipment events` }).optional();
+}
+
+const { status: _status, locationId: _locationId, ...detailFields } = equipmentFields;
+
+/**
+ * Body of `PATCH /api/equipment/:id`: any subset of the create fields but `status` and
+ * `locationId`, at least one.
+ */
 export const updateEquipmentSchema = z
-  .object(equipmentFields)
+  .object({
+    ...detailFields,
+    status: changedOnlyThroughEvents('Status'),
+    locationId: changedOnlyThroughEvents('Location'),
+  })
   .partial()
   .refine(hasAtLeastOneField, 'Provide at least one field to update')
-  .superRefine(warrantyNotBeforePurchase);
+  .superRefine(warrantyNotBeforePurchase)
+  .transform(({ status: _s, locationId: _l, ...changes }) => changes);
 
 export type UpdateEquipmentInput = z.input<typeof updateEquipmentSchema>;
 export type UpdateEquipment = z.infer<typeof updateEquipmentSchema>;

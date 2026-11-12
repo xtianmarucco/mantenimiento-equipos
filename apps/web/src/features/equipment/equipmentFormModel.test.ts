@@ -100,7 +100,6 @@ describe('validateUpdate', () => {
       serialNumber: 'SN-1',
       purchaseDate: '2025-01-15',
       warrantyUntil: '2027-01-15',
-      status: 'OPERATIONAL',
       locationId: LOCATION_CENTRO.id,
       notes: 'Nota',
     });
@@ -117,17 +116,18 @@ describe('validateUpdate', () => {
   });
 
   it('sends only the changed fields', () => {
-    const values = {
-      ...formValuesFromEquipment(initial),
-      name: 'Freezer vertical',
-      status: 'IN_REPAIR',
-      locationId: LOCATION_KIOSCO.id,
-    };
+    const values = { ...formValuesFromEquipment(initial), name: 'Freezer vertical' };
 
     expect(validateUpdate(initial, values)).toEqual({
       ok: true,
-      data: { name: 'Freezer vertical', status: 'IN_REPAIR', locationId: LOCATION_KIOSCO.id },
+      data: { name: 'Freezer vertical' },
     });
+  });
+
+  it('never sends the location: it changes only through events', () => {
+    const values = { ...formValuesFromEquipment(initial), locationId: LOCATION_KIOSCO.id };
+
+    expect(validateUpdate(initial, values)).toEqual({ ok: true, data: null });
   });
 
   it('clears emptied optional fields with null', () => {

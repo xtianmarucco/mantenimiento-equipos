@@ -44,17 +44,26 @@ describe('EquipmentForm', () => {
     expect(screen.getByRole('textbox', { name: 'Número de serie (opcional)' })).toHaveValue('SN-9');
     expect(screen.getByLabelText('Fecha de compra')).toHaveValue('2025-01-15');
     expect(screen.getByLabelText('Garantía hasta (opcional)')).toHaveValue('2027-01-15');
-    expect(screen.getByRole('combobox', { name: 'Estado' })).toHaveValue('OPERATIONAL');
-    expect(screen.getByRole('combobox', { name: 'Ubicación' })).toHaveValue(LOCATION_CENTRO.id);
     expect(screen.getByRole('textbox', { name: 'Notas (opcional)' })).toHaveValue('Hola');
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeEnabled();
   });
 
-  it('has no status field when creating', () => {
+  it('has no status field when creating, and asks for the initial location', () => {
     renderForm();
 
     expect(screen.queryByRole('combobox', { name: 'Estado' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Ubicación' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Crear equipo' })).toBeInTheDocument();
+  });
+
+  it('has no status or location field when editing: they change through events', () => {
+    renderForm({ mode: 'edit', values: formValuesFromEquipment(makeEquipment()) });
+
+    expect(screen.queryByRole('combobox', { name: 'Estado' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Ubicación' })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('El estado y la ubicación se cambian registrando un evento.'),
+    ).toBeInTheDocument();
   });
 
   it('groups the locations by kind', () => {
