@@ -102,6 +102,15 @@ describe('createEquipmentEventSchema', () => {
     }
   });
 
+  it('accepts a description of exactly 1000 characters', () => {
+    const description = 'x'.repeat(1000);
+
+    const result = createEquipmentEventSchema.safeParse({ ...validByType.RETIREMENT, description });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.description).toBe(description);
+  });
+
   it('rejects an unknown or missing type', () => {
     expect(createEquipmentEventSchema.safeParse({ ...common, type: 'INSPECTION' }).success).toBe(
       false,
@@ -176,6 +185,15 @@ describe('createEquipmentEventSchema', () => {
 
     expect(result.success).toBe(false);
     expect(result.error?.issues[0]?.path).toEqual(['technician']);
+  });
+
+  it('accepts a technician of exactly 120 characters', () => {
+    const technician = 'x'.repeat(120);
+
+    const result = createEquipmentEventSchema.safeParse({ ...common, type: 'REPAIR', technician });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toMatchObject({ technician });
   });
 
   it('drops fields that do not belong to the event type', () => {
