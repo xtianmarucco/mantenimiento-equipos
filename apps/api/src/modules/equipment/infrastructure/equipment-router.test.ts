@@ -586,6 +586,54 @@ describe('POST /api/equipment/:id/events', () => {
     ]);
   });
 
+  it('answers 400 with an issue at toLocationId for a transfer to an unknown location', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app).post(`/api/equipment/${freezer.id}/events`).send({
+      type: 'TRANSFER',
+      occurredOn: '2026-10-20',
+      description: 'A',
+      toLocationId: MISSING_ID,
+    });
+
+    expect(response.status).toBe(400);
+    expect(errorResponseSchema.parse(response.body).error.issues).toEqual([
+      { path: 'toLocationId', message: 'Location does not exist' },
+    ]);
+  });
+
+  it.each([
+    { case: 'missing', replacementEquipmentId: MISSING_ID, message: 'Equipment does not exist' },
+    {
+      case: 'self',
+      replacementEquipmentId: freezer.id,
+      message: 'Equipment cannot replace itself',
+    },
+    {
+      case: 'retired',
+      replacementEquipmentId: retired.id,
+      message: 'Replacement equipment is retired',
+    },
+  ])(
+    'answers 400 with an issue at replacementEquipmentId for a $case replacement',
+    async ({ replacementEquipmentId, message }) => {
+      const { app, equipmentRepository } = createTestApp();
+
+      const response = await request(app).post(`/api/equipment/${freezer.id}/events`).send({
+        type: 'REPLACEMENT',
+        occurredOn: '2026-10-20',
+        description: 'A',
+        replacementEquipmentId,
+      });
+
+      expect(response.status).toBe(400);
+      expect(errorResponseSchema.parse(response.body).error.issues).toEqual([
+        { path: 'replacementEquipmentId', message },
+      ]);
+      expect((await equipmentRepository.findById(freezer.id))?.status).toBe('OPERATIONAL');
+    },
+  );
+
   it('answers 400 with the schema issues for an invalid body', async () => {
     const { app } = createTestApp();
 
