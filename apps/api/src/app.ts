@@ -1,5 +1,6 @@
 import express, { type Express } from 'express';
 
+import type { CalendarDate } from './modules/equipment/domain/equipment.js';
 import type { EquipmentRepository } from './modules/equipment/domain/equipment-repository.js';
 import { createEquipmentModule } from './modules/equipment/infrastructure/create-equipment-module.js';
 import { GetHealth } from './modules/health/application/get-health.js';
@@ -12,6 +13,8 @@ import { errorHandler, notFoundHandler } from './shared/infrastructure/http-erro
 export interface AppDependencies {
   locationRepository: LocationRepository;
   equipmentRepository: EquipmentRepository;
+  /** Today's date (`YYYY-MM-DD`) for event date rules; defaults to the process time zone's date. */
+  today?: () => CalendarDate;
 }
 
 /** Builds the Express app without listening, so tests can drive it directly. */
@@ -25,7 +28,11 @@ export function createApp(dependencies: AppDependencies): Express {
   app.use('/api/locations', createLocationsModule(dependencies.locationRepository));
   app.use(
     '/api/equipment',
-    createEquipmentModule(dependencies.equipmentRepository, dependencies.locationRepository),
+    createEquipmentModule(
+      dependencies.equipmentRepository,
+      dependencies.locationRepository,
+      dependencies.today,
+    ),
   );
 
   app.use(notFoundHandler);

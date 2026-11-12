@@ -42,3 +42,42 @@ export class WarrantyBeforePurchaseError extends DomainValidationError {
     ]);
   }
 }
+
+/** An event would reference a location that does not exist, at `fromLocationId` or `toLocationId`. */
+export class EquipmentEventLocationNotFoundError extends DomainValidationError {
+  readonly locationId: string;
+
+  constructor(field: 'fromLocationId' | 'toLocationId', locationId: string) {
+    super(`Location ${locationId} not found`, [
+      { path: field, message: 'Location does not exist' },
+    ]);
+    this.locationId = locationId;
+  }
+}
+
+/** A replacement event would name replacement equipment that does not exist. */
+export class ReplacementEquipmentNotFoundError extends DomainValidationError {
+  readonly equipmentId: string;
+
+  constructor(equipmentId: string) {
+    super(`Equipment ${equipmentId} not found`, [
+      { path: 'replacementEquipmentId', message: 'Equipment does not exist' },
+    ]);
+    this.equipmentId = equipmentId;
+  }
+}
+
+/**
+ * An event that breaks a business rule against the stored equipment: an invalid status transition
+ * or an event on retired equipment (at `type`), a date out of range (at `occurredOn`), a transfer
+ * to the current location (at `toLocationId`), or an unsuitable replacement (at
+ * `replacementEquipmentId`).
+ */
+export class InvalidEquipmentEventError extends DomainValidationError {
+  constructor(
+    field: 'type' | 'occurredOn' | 'toLocationId' | 'replacementEquipmentId',
+    message: string,
+  ) {
+    super(message, [{ path: field, message }]);
+  }
+}

@@ -54,15 +54,15 @@ builds the Express app and `src/server.ts` starts it. Copy `apps/api/.env.exampl
 `apps/api/.env` before running it. The Prisma client is generated on `pnpm install`
 (`prisma generate`, no database needed).
 
-| Command                                       | What it does                                        |
-| --------------------------------------------- | --------------------------------------------------- |
-| `pnpm --filter @mantenimiento/api dev`        | Start the API with reload (`tsx watch`)             |
-| `pnpm --filter @mantenimiento/api start`      | Run the built API from `dist`                       |
-| `pnpm --filter @mantenimiento/api generate`   | Regenerate the Prisma client                        |
-| `pnpm --filter @mantenimiento/api db:migrate` | Create and apply a migration, regenerate the client |
-| `pnpm --filter @mantenimiento/api db:deploy`  | Apply pending migrations (no prompts)               |
-| `pnpm --filter @mantenimiento/api db:seed`    | Load sample locations and equipment (idempotent)    |
-| `pnpm --filter @mantenimiento/api db:reset`   | Drop the database, re-apply migrations and seed     |
+| Command                                       | What it does                                             |
+| --------------------------------------------- | -------------------------------------------------------- |
+| `pnpm --filter @mantenimiento/api dev`        | Start the API with reload (`tsx watch`)                  |
+| `pnpm --filter @mantenimiento/api start`      | Run the built API from `dist`                            |
+| `pnpm --filter @mantenimiento/api generate`   | Regenerate the Prisma client                             |
+| `pnpm --filter @mantenimiento/api db:migrate` | Create and apply a migration, regenerate the client      |
+| `pnpm --filter @mantenimiento/api db:deploy`  | Apply pending migrations (no prompts)                    |
+| `pnpm --filter @mantenimiento/api db:seed`    | Load sample locations, equipment and events (idempotent) |
+| `pnpm --filter @mantenimiento/api db:reset`   | Drop the database, re-apply migrations and seed          |
 
 Health check: `GET /api/health` returns `{ "status": "ok" }`.
 
@@ -77,6 +77,8 @@ Health check: `GET /api/health` returns `{ "status": "ok" }`.
 | `POST /api/equipment`            | Create equipment (201); `status` defaults to `OPERATIONAL`             |
 | `PATCH /api/equipment/:id`       | Change some fields; `null` clears an optional one                      |
 | `POST /api/equipment/:id/retire` | Set status `RETIRED`; idempotent, returns the item (200)               |
+| `GET /api/equipment/:id/events`  | History of one item, newest first (`occurredOn`, then `createdAt`)     |
+| `POST /api/equipment/:id/events` | Record an event (201): `{ event, equipment }` after the event's effect |
 
 Bodies, ids and query strings are validated with the `packages/shared` schemas. Errors are JSON
 `{ "error": { "message", "issues"? } }` (`errorResponseSchema`): 400 for an invalid body, id or
@@ -100,6 +102,32 @@ Equipment rules:
   checked against the stored value of the other; the issue is reported at `warrantyUntil`.
 - `purchaseDate` and `warrantyUntil` are calendar dates (`YYYY-MM-DD`), timestamps are ISO 8601
   UTC.
+
+Equipment events (append-only history; never edited or deleted, a correction is a new event). The
+body is discriminated by `type`; `occurredOn` (`YYYY-MM-DD`) and `description` are always required.
+The event and its effect on the equipment are written in one transaction.
+
+| `type`        | Extra fields                                     | Allowed from                  | Effect                     |
+| ------------- | ------------------------------------------------ | ----------------------------- | -------------------------- |
+| `MAINTENANCE` | optional `technician`, `cost`                    | any non-retired status        | none                       |
+| `BREAKDOWN`   | `resultingStatus` (`IN_REPAIR`/`OUT_OF_SERVICE`) | any non-retired status        | status → `resultingStatus` |
+| `REPAIR`      | optional `technician`, `cost`                    | `IN_REPAIR`, `OUT_OF_SERVICE` | status → `OPERATIONAL`     |
+| `TRANSFER`    | `toLocationId` (another, existing location)      | any non-retired status        | location → `toLocationId`  |
+| `REPLACEMENT` | optional `replacementEquipmentId`                | any non-retired status        | status → `RETIRED`         |
+| `RETIREMENT`  | none (the description is the reason)             | any non-retired status        | status → `RETIRED`         |
+
+- **Rules** answer 400 with an issue at the field: `RETIRED` is final (any event, issue at
+  `type`); an invalid transition (at `type`); `occurredOn` after today or before the purchase
+  date (at `occurredOn`); a transfer to the current or an unknown location (at `toLocationId`);
+  replacement equipment that does not exist, is the same item or is retired (at
+  `replacementEquipmentId`). Unknown equipment answers 404.
+- **Today** is the API process's local date (`TZ`); `createApp` accepts a `today` function for
+  tests.
+- `cost` is ARS, non-negative, at most two decimals; a transfer records `fromLocationId` (where
+  the item was).
+- **Known race:** the rules are checked against the equipment as read before the write, without a
+  lock, so two events sent at the same time can both pass against the same status (for example two
+  retirements). Accepted while there is a single owner and no authentication.
 
 ### Warranty check before migrating existing data
 

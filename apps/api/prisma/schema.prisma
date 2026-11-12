@@ -14,6 +14,10 @@
 // `20261101210000_equipment_warranty_check`. Prisma cannot express CHECK constraints and ignores
 // them when diffing; `PrismaEquipmentRepository` maps the violation by the constraint's name, so
 // keep the name in sync if it ever changes.
+// `equipment_events` has the CHECK constraint `equipment_events_cost_non_negative_check`
+// (`cost IS NULL OR cost >= 0`), added by hand in migration `20261112010054_equipment_events`.
+// Its foreign keys keep Prisma's default names (`equipment_events_<column>_fkey`);
+// `PrismaEquipmentRepository` maps their violations by name, so keep them in sync.
 
 generator client {
   provider            = "prisma-client"
@@ -52,6 +56,17 @@ enum EquipmentStatus {
   @@map("equipment_status")
 }
 
+enum EquipmentEventType {
+  MAINTENANCE
+  BREAKDOWN
+  REPAIR
+  TRANSFER
+  REPLACEMENT
+  RETIREMENT
+
+  @@map("equipment_event_type")
+}
+
 /// An own store or a third-party kiosk where equipment lives.
 model Location {
   id          String       @id @default(uuid()) @db.Uuid
@@ -63,7 +78,9 @@ model Location {
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  equipment Equipment[]
+  equipment  Equipment[]
+  eventsFrom EquipmentEvent[] @relation("EventFromLocation")
+  eventsTo   EquipmentEvent[] @relation("EventToLocation")
 
   @@map("locations")
 }
@@ -88,7 +105,38 @@ model Equipment {
   // Restrict: a location that still holds equipment cannot be deleted.
   location   Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
+  events            EquipmentEvent[] @relation("EventEquipment")
+  replacementEvents EquipmentEvent[] @relation("EventReplacementEquipment")
+
   @@index([locationId])
   @@index([status])
   @@map("equipment")
+}
+
+/// Something that happened to an equipment item. Append-only: never edited or deleted. One flat row
+/// per event; the type-specific columns are `null` when they do not apply to its type.
+model EquipmentEvent {
+  id              String             @id @default(uuid()) @db.Uuid
+  type            EquipmentEventType
+  occurredOn      DateTime           @map("occurred_on") @db.Date
+  description     String             @db.VarChar(1000)
+  technician      String?            @db.VarChar(120)
+  // ARS, two decimals; the shared schema caps it at 99,999,999.99 to fit.
+  cost            Decimal?           @db.Decimal(10, 2)
+  resultingStatus EquipmentStatus?   @map("resulting_status")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  // Restrict everywhere: history keeps the records it mentions.
+  equipmentId            String     @map("equipment_id") @db.Uuid
+  equipment              Equipment  @relation("EventEquipment", fields: [equipmentId], references: [id], onDelete: Restrict)
+  fromLocationId         String?    @map("from_location_id") @db.Uuid
+  fromLocation           Location?  @relation("EventFromLocation", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocationId           String?    @map("to_location_id") @db.Uuid
+  toLocation             Location?  @relation("EventToLocation", fields: [toLocationId], references: [id], onDelete: Restrict)
+  replacementEquipmentId String?    @map("replacement_equipment_id") @db.Uuid
+  replacementEquipment   Equipment? @relation("EventReplacementEquipment", fields: [replacementEquipmentId], references: [id], onDelete: Restrict)
+
+  // History of one equipment item, newest first.
+  @@index([equipmentId, occurredOn(sort: Desc), createdAt(sort: Desc)])
+  @@map("equipment_events")
 }

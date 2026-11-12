@@ -6,6 +6,7 @@ import {
   truncateAllTables,
 } from '../../../test/integration/test-database.js';
 import { PrismaLocationRepository } from '../../locations/infrastructure/prisma-location-repository.js';
+import { describeEquipmentEventRepositoryContract } from './equipment-event-repository.contract.js';
 import { describeEquipmentRepositoryContract } from './equipment-repository.contract.js';
 import { WarrantyBeforePurchaseError } from '../domain/equipment-errors.js';
 import { PrismaEquipmentRepository } from './prisma-equipment-repository.js';
@@ -25,6 +26,7 @@ async function emptyFixture() {
 }
 
 describeEquipmentRepositoryContract('PrismaEquipmentRepository', emptyFixture);
+describeEquipmentEventRepositoryContract('PrismaEquipmentRepository', emptyFixture);
 
 describe('PrismaEquipmentRepository errors', () => {
   it('rethrows database errors other than the mapped ones', async () => {
