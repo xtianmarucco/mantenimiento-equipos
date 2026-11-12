@@ -55,8 +55,8 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 ## Tasks
 
 - [x] T1 Shared: event type enum, discriminated create-event schema, event response schema; tests. (Additive only, so every slice keeps api and web green.) Commit `62792d2`.
-- [ ] T1.1 Follow-up (slice 01 review, non-blocking): R3-length-boundaries (SUGGESTION) accept cases at exactly 1000 characters for `description` and exactly 120 for `technician` (`packages/shared/src/equipment-event.test.ts:90-103`). Done in slice 02 alongside T2.
-- [ ] T2 API persistence: Prisma `EquipmentEvent` model + migration, enum parity, repository "record event" (atomic event + equipment change) and "list events" in the port, in-memory and Prisma adapters, contract tests (unit + integration).
+- [x] T1.1 Follow-up (slice 01 review, non-blocking): R3-length-boundaries (SUGGESTION) accept cases at exactly 1000 characters for `description` and exactly 120 for `technician` (`packages/shared/src/equipment-event.test.ts:90-103`). Done in slice 02 alongside T2. Commit `237f462`.
+- [x] T2 API persistence: Prisma `EquipmentEvent` model + migration, enum parity, repository "record event" (atomic event + equipment change) and "list events" in the port, in-memory and Prisma adapters, contract tests (unit + integration). Commit `2204bc6`.
 - [ ] T3 API behavior: record/list event use cases with transition rules, `GET`/`POST /api/equipment/:id/events`, seed events, README.
 - [ ] T4 Web history: events API client and history section on the equipment detail page.
 - [ ] T5 Web register: "Registrar evento" form with type-specific fields, "Dar de baja" as `RETIREMENT`, remove status/location from the edit form; remove the legacy paths end to end (`status`/`locationId` from `updateEquipmentSchema` and the PATCH use case, `POST /:id/retire` and its use case and client), README.
@@ -71,6 +71,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 
 - Route: delegated direct per task (writer trigger: 2+ non-trivial files per task).
 - T1: delegated direct (writer).
+- T2: delegated direct (writer).
 
 ## Delivery
 
@@ -90,6 +91,9 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - 2026-11-11: T1 done (`62792d2`). RED: `pnpm --filter @mantenimiento/shared test` failed 23 of 85 tests (event exports undefined) before the implementation; GREEN: 85 of 85 passed. `pnpm typecheck`, `pnpm lint` and `pnpm exec prettier --check packages/shared odd` pass. Choices: description max 1000 (as equipment notes), technician max 120, cost non-negative with two decimals and at most 99,999,999.99 (T2 should store it as `DECIMAL(10, 2)`); unknown keys and fields of other event types are stripped, like the existing create schemas.
 - 2026-11-11: Slice 01 native review (`--base-ref origin/feat/monorepo-scaffold --committed-only`, `.atl/` excluded locally via `.git/info/exclude`): medium, `slice_budget_reached`, consent granted, reliability lens approved, acknowledged. Reviewed boundary `c9e9271`. Advisory R3-length-boundaries recorded as T1.1.
 
+- 2026-11-11: T1.1 done (`237f462`): accept cases at exactly 1000 (`description`) and 120 (`technician`) characters; `pnpm --filter @mantenimiento/shared test` 87 of 87 passed (no RED: boundary cases pin existing behavior).
+- 2026-11-11: T2 done (`2204bc6`). Migration `20261112010054_equipment_events` (enum `equipment_event_type`, table `equipment_events`, four Restrict foreign keys, index `(equipment_id, occurred_on DESC, created_at DESC)`, hand-written CHECK `equipment_events_cost_non_negative_check`); a follow-up `migrate dev --create-only` produced an empty migration (schema in sync), discarded. RED: with the new contract suite `equipment-event-repository.contract.ts` wired in, `pnpm --filter @mantenimiento/api test` failed 18 of 137 and `pnpm test:integration` 18 of 51 (`recordEvent`/`listEvents` not functions). GREEN: api 138 of 138 (with the `EquipmentEventType` parity case), integration 51 of 51 against a throwaway PostgreSQL 18.6 container; shared 87 of 87; `pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check apps/api packages/shared odd` pass. Choices: port `recordEvent(event, effect)` returns `{ event, equipment }` or `undefined` for unknown equipment (like `update`); the Prisma transaction inserts the event first, so its foreign keys prove the references, then applies the effect; foreign key violations are mapped by constraint name (`meta.driverAdapterError.cause.constraint.index`) to `EquipmentEventLocationNotFoundError` (`fromLocationId`/`toLocationId`) and `ReplacementEquipmentNotFoundError`; an unknown effect location stays `EquipmentLocationNotFoundError`; `updatedAt` moves only for a non-empty effect; history order `occurredOn`, `createdAt`, id, all descending; cost is a number in the domain, `DECIMAL(10, 2)` in the database. Minimal compile fix outside the planned files: `apps/api/prisma/seed.ts` omits the new relation fields from its `Required<...>` sample types.
+
 ## Next step
 
-Start T2 on `feat/equipment-events-02-persistence`.
+Start T3 on `feat/equipment-events-03-api`.
