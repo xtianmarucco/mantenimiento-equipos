@@ -329,32 +329,43 @@ describe('PATCH /api/equipment/:id', () => {
 
     const response = await request(app)
       .patch(`/api/equipment/${freezer.id}`)
-      .send({ code: 'fz-0001', serialNumber: null, locationId: KIOSCO_ID });
+      .send({ code: 'fz-0001', serialNumber: null });
 
     expect(response.status).toBe(200);
     expect(parseEquipment(response.body)).toMatchObject({
       code: 'FZ-0001',
       serialNumber: null,
-      locationId: KIOSCO_ID,
       name: 'Freezer horizontal',
       notes: 'Junto a la caja',
       updatedAt: NOW,
     });
   });
 
-  it('can change the status to RETIRED and back', async () => {
-    const { app } = createTestApp();
+  it.each([
+    ['status', 'RETIRED', 'Status changes only through equipment events'],
+    ['locationId', KIOSCO_ID, 'Location changes only through equipment events'],
+  ])(
+    'answers 400 for %s, which changes only through events, and changes nothing',
+    async (field, value, message) => {
+      const { app } = createTestApp();
 
-    const retiredResponse = await request(app)
-      .patch(`/api/equipment/${freezer.id}`)
-      .send({ status: 'RETIRED' });
-    const restored = await request(app)
-      .patch(`/api/equipment/${freezer.id}`)
-      .send({ status: 'OPERATIONAL' });
+      const response = await request(app)
+        .patch(`/api/equipment/${freezer.id}`)
+        .send({ notes: 'Otra nota', [field]: value });
 
-    expect(parseEquipment(retiredResponse.body).status).toBe('RETIRED');
-    expect(parseEquipment(restored.body).status).toBe('OPERATIONAL');
-  });
+      expect(response.status).toBe(400);
+      expect(errorResponseSchema.parse(response.body)).toEqual({
+        error: { message: 'Invalid request body', issues: [{ path: field, message }] },
+      });
+      const stored = await request(app).get(`/api/equipment/${freezer.id}`);
+      expect(parseEquipment(stored.body)).toMatchObject({
+        status: freezer.status,
+        locationId: freezer.locationId,
+        notes: freezer.notes,
+        updatedAt: freezer.updatedAt.toISOString(),
+      });
+    },
+  );
 
   it('answers 400 when only warrantyUntil is sent and it ends before the stored purchase date', async () => {
     const { app } = createTestApp();
@@ -395,19 +406,6 @@ describe('PATCH /api/equipment/:id', () => {
     expect(response.status).toBe(409);
   });
 
-  it('answers 400 with an issue at locationId for a location that does not exist', async () => {
-    const { app } = createTestApp();
-
-    const response = await request(app)
-      .patch(`/api/equipment/${freezer.id}`)
-      .send({ locationId: MISSING_ID });
-
-    expect(response.status).toBe(400);
-    expect(errorResponseSchema.parse(response.body).error.issues).toEqual([
-      { path: 'locationId', message: 'Location does not exist' },
-    ]);
-  });
-
   it('answers 400 for an empty patch', async () => {
     const { app } = createTestApp();
 
@@ -443,37 +441,14 @@ describe('PATCH /api/equipment/:id', () => {
 });
 
 describe('POST /api/equipment/:id/retire', () => {
-  it('retires the equipment and answers 200 every time', async () => {
+  it('is gone: retiring is a RETIREMENT event', async () => {
     const { app } = createTestApp();
 
-    const first = await request(app).post(`/api/equipment/${freezer.id}/retire`);
-    const second = await request(app).post(`/api/equipment/${freezer.id}/retire`);
-
-    expect(first.status).toBe(200);
-    expect(second.status).toBe(200);
-    expect(parseEquipment(first.body)).toEqual({
-      ...parseEquipment(second.body),
-      status: 'RETIRED',
-      updatedAt: NOW,
-    });
-    const list = await request(app).get('/api/equipment');
-    expect(names(list.body)).toEqual(['Vitrina']);
-  });
-
-  it('answers 404 for an unknown id', async () => {
-    const { app } = createTestApp();
-
-    const response = await request(app).post(`/api/equipment/${MISSING_ID}/retire`);
+    const response = await request(app).post(`/api/equipment/${freezer.id}/retire`);
 
     expect(response.status).toBe(404);
-  });
-
-  it('answers 400 for an id that is not a UUID', async () => {
-    const { app } = createTestApp();
-
-    const response = await request(app).post('/api/equipment/abc/retire');
-
-    expect(response.status).toBe(400);
+    const stored = await request(app).get(`/api/equipment/${freezer.id}`);
+    expect(parseEquipment(stored.body).status).toBe(freezer.status);
   });
 });
 

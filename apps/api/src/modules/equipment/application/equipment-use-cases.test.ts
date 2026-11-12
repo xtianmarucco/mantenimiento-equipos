@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Location } from '../../locations/domain/location.js';
 import { InMemoryLocationRepository } from '../../locations/infrastructure/in-memory-location-repository.js';
-import type { Equipment, NewEquipment } from '../domain/equipment.js';
+import type { Equipment, EquipmentDetailChanges, NewEquipment } from '../domain/equipment.js';
 import {
   EquipmentLocationNotFoundError,
   EquipmentNotFoundError,
@@ -12,7 +12,6 @@ import { InMemoryEquipmentRepository } from '../infrastructure/in-memory-equipme
 import { CreateEquipmentUseCase } from './create-equipment.js';
 import { GetEquipmentUseCase } from './get-equipment.js';
 import { ListEquipmentUseCase } from './list-equipment.js';
-import { RetireEquipmentUseCase } from './retire-equipment.js';
 import { UpdateEquipmentUseCase } from './update-equipment.js';
 
 const MISSING_ID = '00000000-0000-4000-8000-000000000000';
@@ -174,49 +173,50 @@ describe('CreateEquipmentUseCase', () => {
 
 describe('UpdateEquipmentUseCase', () => {
   it('changes the given fields and bumps updatedAt', async () => {
-    const { repository, locations } = setup();
+    const { repository } = setup();
 
-    const updated = await new UpdateEquipmentUseCase(repository, locations).execute(STORED_ID, {
-      locationId: KIOSCO_ID,
+    const updated = await new UpdateEquipmentUseCase(repository).execute(STORED_ID, {
+      name: 'Freezer vertical',
       notes: 'En préstamo',
     });
 
     expect(updated).toEqual({
       ...equipment(),
-      locationId: KIOSCO_ID,
+      name: 'Freezer vertical',
       notes: 'En préstamo',
       updatedAt: new Date(START),
     });
   });
 
-  it('throws EquipmentNotFoundError for an unknown id', async () => {
-    const { repository, locations } = setup();
+  it('never applies a status or location: they change only through events', async () => {
+    const { repository } = setup();
+    // Not reachable through the HTTP schema, which rejects both keys; this guards the use case.
+    const smuggled = {
+      notes: 'En préstamo',
+      status: 'RETIRED',
+      locationId: KIOSCO_ID,
+    } as unknown as EquipmentDetailChanges;
 
-    await expect(
-      new UpdateEquipmentUseCase(repository, locations).execute(MISSING_ID, { name: 'Nuevo' }),
-    ).rejects.toBeInstanceOf(EquipmentNotFoundError);
+    const updated = await new UpdateEquipmentUseCase(repository).execute(STORED_ID, smuggled);
+
+    expect(updated).toEqual({ ...equipment(), notes: 'En préstamo', updatedAt: new Date(START) });
   });
 
-  it('rejects a new location that does not exist and keeps the stored record', async () => {
-    const { repository, locations } = setup();
+  it('throws EquipmentNotFoundError for an unknown id', async () => {
+    const { repository } = setup();
 
-    const error = await rejection(
-      new UpdateEquipmentUseCase(repository, locations).execute(STORED_ID, {
-        locationId: MISSING_ID,
-      }),
-    );
-
-    expect(error).toBeInstanceOf(EquipmentLocationNotFoundError);
-    await expect(repository.findById(STORED_ID)).resolves.toEqual(equipment());
+    await expect(
+      new UpdateEquipmentUseCase(repository).execute(MISSING_ID, { name: 'Nuevo' }),
+    ).rejects.toBeInstanceOf(EquipmentNotFoundError);
   });
 
   describe('warranty rule against the stored record', () => {
     // Stored: purchased 2024-03-15, warranty until 2025-03-15.
     it('rejects a warranty end before the stored purchase date', async () => {
-      const { repository, locations } = setup();
+      const { repository } = setup();
 
       const error = await rejection(
-        new UpdateEquipmentUseCase(repository, locations).execute(STORED_ID, {
+        new UpdateEquipmentUseCase(repository).execute(STORED_ID, {
           warrantyUntil: '2024-03-14',
         }),
       );
@@ -227,10 +227,10 @@ describe('UpdateEquipmentUseCase', () => {
     });
 
     it('rejects a purchase date after the stored warranty end, with an issue at warrantyUntil', async () => {
-      const { repository, locations } = setup();
+      const { repository } = setup();
 
       const error = await rejection(
-        new UpdateEquipmentUseCase(repository, locations).execute(STORED_ID, {
+        new UpdateEquipmentUseCase(repository).execute(STORED_ID, {
           purchaseDate: '2025-03-16',
         }),
       );
@@ -240,8 +240,8 @@ describe('UpdateEquipmentUseCase', () => {
     });
 
     it('accepts dates on the boundary and either date alone when consistent', async () => {
-      const { repository, locations } = setup();
-      const updateEquipment = new UpdateEquipmentUseCase(repository, locations);
+      const { repository } = setup();
+      const updateEquipment = new UpdateEquipmentUseCase(repository);
 
       await expect(
         updateEquipment.execute(STORED_ID, { warrantyUntil: '2024-03-15' }),
@@ -252,50 +252,20 @@ describe('UpdateEquipmentUseCase', () => {
     });
 
     it('accepts any purchase date when the stored warranty is empty or cleared', async () => {
-      const { repository, locations } = setup([equipment({ warrantyUntil: null })]);
-      const updateEquipment = new UpdateEquipmentUseCase(repository, locations);
+      const { repository } = setup([equipment({ warrantyUntil: null })]);
+      const updateEquipment = new UpdateEquipmentUseCase(repository);
 
       await expect(
         updateEquipment.execute(STORED_ID, { purchaseDate: '2030-01-01' }),
       ).resolves.toMatchObject({ purchaseDate: '2030-01-01', warrantyUntil: null });
 
-      const { repository: other, locations: otherLocations } = setup();
+      const { repository: other } = setup();
       await expect(
-        new UpdateEquipmentUseCase(other, otherLocations).execute(STORED_ID, {
+        new UpdateEquipmentUseCase(other).execute(STORED_ID, {
           purchaseDate: '2030-01-01',
           warrantyUntil: null,
         }),
       ).resolves.toMatchObject({ purchaseDate: '2030-01-01', warrantyUntil: null });
     });
-  });
-});
-
-describe('RetireEquipmentUseCase', () => {
-  it('sets the status to RETIRED and bumps updatedAt', async () => {
-    const { repository } = setup();
-
-    const retired = await new RetireEquipmentUseCase(repository).execute(STORED_ID);
-
-    expect(retired).toEqual({ ...equipment(), status: 'RETIRED', updatedAt: new Date(START) });
-    await expect(repository.findById(STORED_ID)).resolves.toEqual(retired);
-  });
-
-  it('is idempotent: retiring retired equipment returns it unchanged', async () => {
-    const { repository } = setup();
-    const retireEquipment = new RetireEquipmentUseCase(repository);
-
-    const first = await retireEquipment.execute(STORED_ID);
-    const second = await retireEquipment.execute(STORED_ID);
-
-    expect(second).toEqual(first);
-    expect(second.updatedAt).toEqual(new Date(START));
-  });
-
-  it('throws EquipmentNotFoundError for an unknown id', async () => {
-    const { repository } = setup();
-
-    await expect(new RetireEquipmentUseCase(repository).execute(MISSING_ID)).rejects.toBeInstanceOf(
-      EquipmentNotFoundError,
-    );
   });
 });

@@ -6,7 +6,6 @@ import { GetEquipmentUseCase } from '../application/get-equipment.js';
 import { ListEquipmentUseCase } from '../application/list-equipment.js';
 import { ListEquipmentEventsUseCase } from '../application/list-equipment-events.js';
 import { RecordEquipmentEventUseCase } from '../application/record-equipment-event.js';
-import { RetireEquipmentUseCase } from '../application/retire-equipment.js';
 import { UpdateEquipmentUseCase } from '../application/update-equipment.js';
 import type { CalendarDate } from '../domain/equipment.js';
 import type { EquipmentRepository } from '../domain/equipment-repository.js';
@@ -26,8 +25,7 @@ export function createEquipmentModule(
     listEquipment: new ListEquipmentUseCase(equipment),
     getEquipment: new GetEquipmentUseCase(equipment),
     createEquipment: new CreateEquipmentUseCase(equipment, locations),
-    updateEquipment: new UpdateEquipmentUseCase(equipment, locations),
-    retireEquipment: new RetireEquipmentUseCase(equipment),
+    updateEquipment: new UpdateEquipmentUseCase(equipment),
     listEquipmentEvents: new ListEquipmentEventsUseCase(equipment),
     recordEquipmentEvent: new RecordEquipmentEventUseCase(equipment, locations, today),
   });

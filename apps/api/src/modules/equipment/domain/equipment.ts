@@ -52,6 +52,12 @@ export interface NewEquipment {
 export type EquipmentChanges = { readonly [K in keyof NewEquipment]?: NewEquipment[K] | undefined };
 
 /**
+ * Changes an update may make: every detail but `status` and `locationId`, which change only
+ * through equipment events.
+ */
+export type EquipmentDetailChanges = Omit<EquipmentChanges, 'status' | 'locationId'>;
+
+/**
  * Which equipment to list; the filters combine with AND. Without `status`, retired equipment is
  * left out; ask for `status: 'RETIRED'` to list it.
  */

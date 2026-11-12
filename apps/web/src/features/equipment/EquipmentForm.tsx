@@ -1,5 +1,4 @@
 import {
-  equipmentStatusSchema,
   equipmentTypeSchema,
   locationKindSchema,
   type LocationResponse,
@@ -11,7 +10,7 @@ import type { ResourceState } from '../../shared/hooks/useResource';
 import { errorBox, focusRing, primaryButton, secondaryButton } from '../../shared/ui/styles';
 import type { EquipmentFormValues, FieldErrors, FormError, FormField } from './equipmentFormModel';
 import { SelectField, TextAreaField, TextField } from './FormFields';
-import { LOCATION_KIND_GROUP_LABELS, STATUS_LABELS, TYPE_LABELS } from './labels';
+import { LOCATION_KIND_GROUP_LABELS, TYPE_LABELS } from './labels';
 import type { EquipmentNavigationState } from './navigation';
 
 /** Asks the form to move focus; a new `seq` repeats the request for the same target. */
@@ -42,7 +41,8 @@ const LOCATION_LOAD_ERROR_HINT = 'No se pudieron cargar las ubicaciones.';
 /**
  * Presentational create/edit form. Controlled: values, errors and the saving flag come from the
  * container, which validates and submits. Native validation is off (`noValidate`) so every
- * message comes from the shared schemas, in Spanish.
+ * message comes from the shared schemas, in Spanish. The location is set on create only (the API
+ * defaults the status); after that both change through events, so the edit form has neither.
  */
 export function EquipmentForm({
   mode,
@@ -127,16 +127,6 @@ export function EquipmentForm({
           ))}
         </SelectField>
 
-        {mode === 'edit' && (
-          <SelectField {...field('status')} label="Estado">
-            {equipmentStatusSchema.options.map((status) => (
-              <option key={status} value={status}>
-                {STATUS_LABELS[status]}
-              </option>
-            ))}
-          </SelectField>
-        )}
-
         <TextField {...field('brand')} label="Marca" />
         <TextField {...field('model')} label="Modelo" />
         <TextField {...field('serialNumber')} label="Número de serie" optional />
@@ -144,43 +134,51 @@ export function EquipmentForm({
         <TextField {...field('purchaseDate')} label="Fecha de compra" type="date" />
         <TextField {...field('warrantyUntil')} label="Garantía hasta" type="date" optional />
 
-        <SelectField
-          {...field('locationId')}
-          label="Ubicación"
-          disabled={locations.status !== 'success'}
-          hint={locations.status === 'error' ? LOCATION_LOAD_ERROR_HINT : undefined}
-          action={
-            locations.status === 'error' && onRetryLocations ? (
-              <button type="button" onClick={onRetryLocations} className={secondaryButton}>
-                Reintentar
-              </button>
-            ) : undefined
-          }
-        >
-          <option value="">
-            {locations.status === 'loading'
-              ? 'Cargando ubicaciones…'
-              : locations.status === 'error'
-                ? LOCATION_LOAD_ERROR_HINT
-                : 'Seleccione una ubicación'}
-          </option>
-          {locations.status === 'success' &&
-            locationKindSchema.options.map((kind) => {
-              const group = locations.data.filter((location) => location.kind === kind);
-              return (
-                group.length > 0 && (
-                  <optgroup key={kind} label={LOCATION_KIND_GROUP_LABELS[kind]}>
-                    {group.map((location) => (
-                      <option key={location.id} value={location.id}>
-                        {location.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )
-              );
-            })}
-        </SelectField>
+        {mode === 'create' && (
+          <SelectField
+            {...field('locationId')}
+            label="Ubicación"
+            disabled={locations.status !== 'success'}
+            hint={locations.status === 'error' ? LOCATION_LOAD_ERROR_HINT : undefined}
+            action={
+              locations.status === 'error' && onRetryLocations ? (
+                <button type="button" onClick={onRetryLocations} className={secondaryButton}>
+                  Reintentar
+                </button>
+              ) : undefined
+            }
+          >
+            <option value="">
+              {locations.status === 'loading'
+                ? 'Cargando ubicaciones…'
+                : locations.status === 'error'
+                  ? LOCATION_LOAD_ERROR_HINT
+                  : 'Seleccione una ubicación'}
+            </option>
+            {locations.status === 'success' &&
+              locationKindSchema.options.map((kind) => {
+                const group = locations.data.filter((location) => location.kind === kind);
+                return (
+                  group.length > 0 && (
+                    <optgroup key={kind} label={LOCATION_KIND_GROUP_LABELS[kind]}>
+                      {group.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )
+                );
+              })}
+          </SelectField>
+        )}
       </div>
+
+      {mode === 'edit' && (
+        <p className="text-sm text-slate-600">
+          El estado y la ubicación se cambian registrando un evento.
+        </p>
+      )}
 
       <TextAreaField {...field('notes')} label="Notas" optional />
 

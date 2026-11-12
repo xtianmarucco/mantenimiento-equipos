@@ -20,7 +20,6 @@ export const FORM_FIELDS = [
   'serialNumber',
   'purchaseDate',
   'warrantyUntil',
-  'status',
   'locationId',
   'notes',
 ] as const;
@@ -50,7 +49,6 @@ export const EMPTY_FORM_VALUES: EquipmentFormValues = {
   serialNumber: '',
   purchaseDate: '',
   warrantyUntil: '',
-  status: 'OPERATIONAL',
   locationId: '',
   notes: '',
 };
@@ -65,7 +63,6 @@ export function formValuesFromEquipment(item: EquipmentResponse): EquipmentFormV
     serialNumber: item.serialNumber ?? '',
     purchaseDate: item.purchaseDate,
     warrantyUntil: item.warrantyUntil ?? '',
-    status: item.status,
     locationId: item.locationId,
     notes: item.notes ?? '',
   };
@@ -76,7 +73,6 @@ export function formValuesFromEquipment(item: EquipmentResponse): EquipmentFormV
 const REQUIRED = 'Este campo es obligatorio.';
 const REQUIRED_MESSAGES: FieldErrors = {
   type: 'Seleccione un tipo.',
-  status: 'Seleccione un estado.',
   purchaseDate: 'Ingrese la fecha de compra.',
   locationId: 'Seleccione una ubicación.',
 };
@@ -155,8 +151,9 @@ export type ValidationResult<T> = { ok: true; data: T } | { ok: false; errors: F
 export function validateCreate(
   values: EquipmentFormValues,
 ): ValidationResult<CreateEquipmentInput> {
-  const { status: _status, ...rest } = toPayload(values);
-  const payload = Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== null));
+  const payload = Object.fromEntries(
+    Object.entries(toPayload(values)).filter(([, value]) => value !== null),
+  );
   const parsed = createEquipmentSchema.safeParse(payload);
   if (!parsed.success) {
     return { ok: false, errors: fieldErrorsFromIssues(parsed.error.issues, values) };
@@ -168,13 +165,15 @@ export function validateCreate(
 /**
  * Validates the whole form with the shared update schema (so the warranty rule sees both dates),
  * then keeps only the fields whose normalized value differs from `initial`. Cleared optional
- * fields are sent as `null`. `data` is `null` when nothing changed.
+ * fields are sent as `null`. The location is never sent: after creation it changes only through
+ * events (the API rejects it). `data` is `null` when nothing changed.
  */
 export function validateUpdate(
   initial: EquipmentResponse,
   values: EquipmentFormValues,
 ): ValidationResult<UpdateEquipmentInput | null> {
-  const parsed = updateEquipmentSchema.safeParse(toPayload(values));
+  const { locationId: _locationId, ...details } = toPayload(values);
+  const parsed = updateEquipmentSchema.safeParse(details);
   if (!parsed.success) {
     return { ok: false, errors: fieldErrorsFromIssues(parsed.error.issues, values) };
   }
