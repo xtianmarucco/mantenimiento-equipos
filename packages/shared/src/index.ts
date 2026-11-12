@@ -17,6 +17,15 @@ export {
   type UpdateEquipment,
   type UpdateEquipmentInput,
 } from './equipment.js';
+export {
+  createEquipmentEventSchema,
+  equipmentEventResponseSchema,
+  equipmentEventTypeSchema,
+  type CreateEquipmentEvent,
+  type CreateEquipmentEventInput,
+  type EquipmentEventResponse,
+  type EquipmentEventType,
+} from './equipment-event.js';
 export { healthResponseSchema, type HealthResponse } from './health.js';
 export {
   errorIssueSchema,
