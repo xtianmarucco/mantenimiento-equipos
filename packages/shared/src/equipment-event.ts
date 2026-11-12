@@ -7,7 +7,7 @@ import {
   optionalText,
   requiredText,
 } from './common.js';
-import { equipmentStatusSchema } from './equipment.js';
+import { equipmentResponseSchema, equipmentStatusSchema } from './equipment.js';
 
 /** What happened to an equipment item. Events are append-only and drive its status and location. */
 export const equipmentEventTypeSchema = z.enum([
@@ -89,3 +89,11 @@ export const equipmentEventResponseSchema = z.object({
 });
 
 export type EquipmentEventResponse = z.infer<typeof equipmentEventResponseSchema>;
+
+/** Response of `POST /api/equipment/:id/events`: the event and its equipment after the effect. */
+export const recordEquipmentEventResponseSchema = z.object({
+  event: equipmentEventResponseSchema,
+  equipment: equipmentResponseSchema,
+});
+
+export type RecordEquipmentEventResponse = z.infer<typeof recordEquipmentEventResponseSchema>;

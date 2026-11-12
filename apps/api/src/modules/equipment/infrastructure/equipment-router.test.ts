@@ -1,6 +1,8 @@
 import {
+  equipmentEventResponseSchema,
   equipmentResponseSchema,
   errorResponseSchema,
+  recordEquipmentEventResponseSchema,
   type CreateEquipmentInput,
   type EquipmentResponse,
 } from '@mantenimiento/shared';
@@ -80,7 +82,10 @@ function createTestApp() {
     equipment: [vitrina, freezer, retired],
     now: () => new Date(NOW),
   });
-  return { app: createApp({ locationRepository, equipmentRepository }), equipmentRepository };
+  return {
+    app: createApp({ locationRepository, equipmentRepository, today: () => NOW.slice(0, 10) }),
+    equipmentRepository,
+  };
 }
 
 function parseEquipment(body: unknown): EquipmentResponse {
@@ -469,6 +474,202 @@ describe('POST /api/equipment/:id/retire', () => {
     const response = await request(app).post('/api/equipment/abc/retire');
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe('POST /api/equipment/:id/events', () => {
+  it('records the event and answers 201 with the event and the equipment after its effect', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app).post(`/api/equipment/${vitrina.id}/events`).send({
+      type: 'REPAIR',
+      occurredOn: '2026-10-20',
+      description: '  Compressor replaced ',
+      technician: 'Frío Sur',
+      cost: 42000.5,
+      toLocationId: CENTRO_ID,
+    });
+
+    expect(response.status).toBe(201);
+    expect(recordEquipmentEventResponseSchema.parse(response.body)).toEqual({
+      event: {
+        id: expect.any(String),
+        equipmentId: vitrina.id,
+        type: 'REPAIR',
+        occurredOn: '2026-10-20',
+        description: 'Compressor replaced',
+        technician: 'Frío Sur',
+        cost: 42000.5,
+        resultingStatus: null,
+        fromLocationId: null,
+        toLocationId: null,
+        replacementEquipmentId: null,
+        createdAt: NOW,
+      },
+      equipment: {
+        ...vitrina,
+        status: 'OPERATIONAL',
+        createdAt: vitrina.createdAt.toISOString(),
+        updatedAt: NOW,
+      },
+    });
+  });
+
+  it('records a transfer with the previous location', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app).post(`/api/equipment/${freezer.id}/events`).send({
+      type: 'TRANSFER',
+      occurredOn: '2026-11-01',
+      description: 'A',
+      toLocationId: KIOSCO_ID,
+    });
+
+    expect(response.status).toBe(201);
+    const body = recordEquipmentEventResponseSchema.parse(response.body);
+    expect(body.event).toMatchObject({ fromLocationId: CENTRO_ID, toLocationId: KIOSCO_ID });
+    expect(body.equipment.locationId).toBe(KIOSCO_ID);
+  });
+
+  it('answers 400 with an issue at type for an invalid transition', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app)
+      .post(`/api/equipment/${freezer.id}/events`)
+      .send({ type: 'REPAIR', occurredOn: '2026-10-20', description: 'A' });
+
+    expect(response.status).toBe(400);
+    expect(errorResponseSchema.parse(response.body).error.issues).toEqual([
+      { path: 'type', message: 'Only equipment in repair or out of service can be repaired' },
+    ]);
+  });
+
+  it('answers 400 with an issue at type for retired equipment', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app)
+      .post(`/api/equipment/${retired.id}/events`)
+      .send({ type: 'MAINTENANCE', occurredOn: '2026-10-20', description: 'A' });
+
+    expect(response.status).toBe(400);
+    expect(errorResponseSchema.parse(response.body).error.issues).toEqual([
+      { path: 'type', message: 'Retired equipment accepts no events' },
+    ]);
+  });
+
+  it('answers 400 with an issue at occurredOn for a future date', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app)
+      .post(`/api/equipment/${freezer.id}/events`)
+      .send({ type: 'MAINTENANCE', occurredOn: '2026-11-02', description: 'A' });
+
+    expect(response.status).toBe(400);
+    expect(errorResponseSchema.parse(response.body).error.issues).toEqual([
+      { path: 'occurredOn', message: 'Date cannot be in the future' },
+    ]);
+  });
+
+  it('answers 400 with an issue at toLocationId for a same-location transfer', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app).post(`/api/equipment/${freezer.id}/events`).send({
+      type: 'TRANSFER',
+      occurredOn: '2026-10-20',
+      description: 'A',
+      toLocationId: CENTRO_ID,
+    });
+
+    expect(response.status).toBe(400);
+    expect(errorResponseSchema.parse(response.body).error.issues).toEqual([
+      { path: 'toLocationId', message: 'Equipment is already at this location' },
+    ]);
+  });
+
+  it('answers 400 with the schema issues for an invalid body', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app)
+      .post(`/api/equipment/${freezer.id}/events`)
+      .send({ type: 'BREAKDOWN', occurredOn: '2026-10-20', description: 'A' });
+
+    expect(response.status).toBe(400);
+    const { error } = errorResponseSchema.parse(response.body);
+    expect(error.message).toBe('Invalid request body');
+    expect(error.issues?.map((issue) => issue.path)).toEqual(['resultingStatus']);
+  });
+
+  it('answers 404 for unknown equipment', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app)
+      .post(`/api/equipment/${MISSING_ID}/events`)
+      .send({ type: 'MAINTENANCE', occurredOn: '2026-10-20', description: 'A' });
+
+    expect(response.status).toBe(404);
+  });
+
+  it('answers 400 for an id that is not a UUID', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app)
+      .post('/api/equipment/abc/events')
+      .send({ type: 'MAINTENANCE', occurredOn: '2026-10-20', description: 'A' });
+
+    expect(response.status).toBe(400);
+    expect(errorResponseSchema.parse(response.body).error.message).toBe('Invalid equipment id');
+  });
+});
+
+describe('GET /api/equipment/:id/events', () => {
+  it('lists the history newest first, matching the shared schema', async () => {
+    const { app } = createTestApp();
+    const post = (body: object) =>
+      request(app).post(`/api/equipment/${freezer.id}/events`).send(body);
+    await post({ type: 'MAINTENANCE', occurredOn: '2026-09-01', description: 'First' });
+    await post({
+      type: 'BREAKDOWN',
+      occurredOn: '2026-10-01',
+      description: 'Third',
+      resultingStatus: 'IN_REPAIR',
+    });
+    await post({ type: 'MAINTENANCE', occurredOn: '2026-09-15', description: 'Second' });
+
+    const response = await request(app).get(`/api/equipment/${freezer.id}/events`);
+
+    expect(response.status).toBe(200);
+    expect(
+      equipmentEventResponseSchema
+        .array()
+        .parse(response.body)
+        .map((event) => event.description),
+    ).toEqual(['Third', 'Second', 'First']);
+  });
+
+  it('answers an empty list for equipment without events', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app).get(`/api/equipment/${vitrina.id}/events`);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+  });
+
+  it('answers 404 for unknown equipment', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app).get(`/api/equipment/${MISSING_ID}/events`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it('answers 400 for an id that is not a UUID', async () => {
+    const { app } = createTestApp();
+
+    const response = await request(app).get('/api/equipment/abc/events');
+
+    expect(response.status).toBe(400);
+    expect(errorResponseSchema.parse(response.body).error.message).toBe('Invalid equipment id');
   });
 });
 

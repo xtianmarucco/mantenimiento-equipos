@@ -1,10 +1,15 @@
 import {
+  createEquipmentEventSchema,
   createEquipmentSchema,
+  equipmentEventResponseSchema,
   equipmentListQuerySchema,
   equipmentResponseSchema,
   idSchema,
+  recordEquipmentEventResponseSchema,
   updateEquipmentSchema,
+  type EquipmentEventResponse,
   type EquipmentResponse,
+  type RecordEquipmentEventResponse,
 } from '@mantenimiento/shared';
 import { Router } from 'express';
 
@@ -12,9 +17,12 @@ import { parseRequest } from '../../../shared/infrastructure/request-validation.
 import type { CreateEquipmentUseCase } from '../application/create-equipment.js';
 import type { GetEquipmentUseCase } from '../application/get-equipment.js';
 import type { ListEquipmentUseCase } from '../application/list-equipment.js';
+import type { ListEquipmentEventsUseCase } from '../application/list-equipment-events.js';
+import type { RecordEquipmentEventUseCase } from '../application/record-equipment-event.js';
 import type { RetireEquipmentUseCase } from '../application/retire-equipment.js';
 import type { UpdateEquipmentUseCase } from '../application/update-equipment.js';
 import type { Equipment } from '../domain/equipment.js';
+import type { EquipmentEvent, RecordedEquipmentEvent } from '../domain/equipment-event.js';
 
 export interface EquipmentUseCases {
   listEquipment: ListEquipmentUseCase;
@@ -22,6 +30,8 @@ export interface EquipmentUseCases {
   createEquipment: CreateEquipmentUseCase;
   updateEquipment: UpdateEquipmentUseCase;
   retireEquipment: RetireEquipmentUseCase;
+  listEquipmentEvents: ListEquipmentEventsUseCase;
+  recordEquipmentEvent: RecordEquipmentEventUseCase;
 }
 
 const INVALID_ID = 'Invalid equipment id';
@@ -37,10 +47,22 @@ function toResponse(item: Equipment): EquipmentResponse {
   });
 }
 
+function toEventResponse(event: EquipmentEvent): EquipmentEventResponse {
+  return equipmentEventResponseSchema.parse({ ...event, createdAt: event.createdAt.toISOString() });
+}
+
+function toRecordedResponse(recorded: RecordedEquipmentEvent): RecordEquipmentEventResponse {
+  return recordEquipmentEventResponseSchema.parse({
+    event: toEventResponse(recorded.event),
+    equipment: toResponse(recorded.equipment),
+  });
+}
+
 /**
  * HTTP adapter for the equipment module, mounted under `/api/equipment`. There is no DELETE:
  * `POST /:id/retire` (status `RETIRED`) replaces it, and the list leaves retired equipment out
- * unless `status=RETIRED` is asked for.
+ * unless `status=RETIRED` is asked for. `GET`/`POST /:id/events` read and append the equipment's
+ * history; recording an event applies its effect (status or location) in the same write.
  */
 export function createEquipmentRouter(useCases: EquipmentUseCases): Router {
   const router = Router();
@@ -74,6 +96,19 @@ export function createEquipmentRouter(useCases: EquipmentUseCases): Router {
     const id = parseRequest(idSchema, req.params.id, INVALID_ID);
     const item = await useCases.retireEquipment.execute(id);
     res.status(200).json(toResponse(item));
+  });
+
+  router.get('/:id/events', async (req, res) => {
+    const id = parseRequest(idSchema, req.params.id, INVALID_ID);
+    const events = await useCases.listEquipmentEvents.execute(id);
+    res.status(200).json(events.map(toEventResponse));
+  });
+
+  router.post('/:id/events', async (req, res) => {
+    const id = parseRequest(idSchema, req.params.id, INVALID_ID);
+    const data = parseRequest(createEquipmentEventSchema, req.body, INVALID_BODY);
+    const recorded = await useCases.recordEquipmentEvent.execute(id, data);
+    res.status(201).json(toRecordedResponse(recorded));
   });
 
   return router;

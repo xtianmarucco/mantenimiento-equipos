@@ -4,6 +4,7 @@ import {
   createEquipmentEventSchema,
   equipmentEventResponseSchema,
   equipmentEventTypeSchema,
+  recordEquipmentEventResponseSchema,
   type CreateEquipmentEventInput,
   type EquipmentEventResponse,
 } from './index.js';
@@ -246,6 +247,54 @@ describe('equipmentEventResponseSchema', () => {
     expect(equipmentEventResponseSchema.safeParse(withoutTechnician).success).toBe(false);
     expect(
       equipmentEventResponseSchema.safeParse({ ...row, createdAt: '2026-11-10' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('recordEquipmentEventResponseSchema', () => {
+  const event: EquipmentEventResponse = {
+    id: '9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a',
+    equipmentId: otherEquipmentId,
+    type: 'RETIREMENT',
+    occurredOn: '2026-11-10',
+    description: 'No longer worth repairing',
+    technician: null,
+    cost: null,
+    resultingStatus: null,
+    fromLocationId: null,
+    toLocationId: null,
+    replacementEquipmentId: null,
+    createdAt: '2026-11-10T12:00:00.000Z',
+  };
+  const equipment = {
+    id: otherEquipmentId,
+    code: 'EQ-0001',
+    name: 'Freezer',
+    type: 'FREEZER',
+    brand: 'Gafa',
+    model: 'HGF-350',
+    serialNumber: null,
+    purchaseDate: '2024-03-15',
+    warrantyUntil: null,
+    status: 'RETIRED',
+    locationId,
+    notes: null,
+    createdAt: '2026-01-01T10:00:00.000Z',
+    updatedAt: '2026-11-10T12:00:00.000Z',
+  };
+
+  it('accepts the recorded event with its equipment after the effect', () => {
+    expect(recordEquipmentEventResponseSchema.parse({ event, equipment })).toEqual({
+      event,
+      equipment,
+    });
+  });
+
+  it('rejects a response missing the equipment or with an invalid event', () => {
+    expect(recordEquipmentEventResponseSchema.safeParse({ event }).success).toBe(false);
+    expect(
+      recordEquipmentEventResponseSchema.safeParse({ event: { ...event, type: 'X' }, equipment })
+        .success,
     ).toBe(false);
   });
 });

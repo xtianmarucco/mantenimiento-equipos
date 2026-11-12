@@ -1,9 +1,12 @@
-// Development seed: two own stores, two third-party kiosks and equipment in every status.
+// Development seed: two own stores, two third-party kiosks, equipment in every status and a
+// history of events that explains each one's status and location.
 // Run with `pnpm --filter @mantenimiento/api db:seed` (Prisma runs the `migrations.seed` command
 // from `prisma.config.ts`). Idempotent: locations are upserted by a fixed id and equipment by
 // code, so running it again restores the sample values instead of duplicating rows. Every column
 // is listed (absent values as explicit `null`), so the upsert `update` also clears edits made to
-// fields a sample leaves empty.
+// fields a sample leaves empty. The events of the sample equipment are deleted and re-inserted
+// with fixed ids, so the history always matches the restored status and location (events added
+// to sample equipment by hand are dropped too).
 import 'dotenv/config';
 
 import { parseEnv } from '../src/config/env.js';
@@ -67,6 +70,16 @@ const locations: SeedLocation[] = [
 ];
 
 const date = (isoDate: string): Date => new Date(`${isoDate}T00:00:00.000Z`);
+
+type SeedEvent = Required<
+  Omit<
+    Prisma.EquipmentEventUncheckedCreateInput,
+    'equipmentId' | 'replacementEquipmentId' | 'createdAt'
+  >
+> & {
+  /** The sample equipment the event belongs to, by code. */
+  readonly equipmentCode: string;
+};
 
 const equipment: SeedEquipment[] = [
   {
@@ -149,6 +162,94 @@ const equipment: SeedEquipment[] = [
   },
 ];
 
+const noWork = { technician: null, cost: null } as const;
+const noReferences = { resultingStatus: null, fromLocationId: null, toLocationId: null } as const;
+
+// Consistent with the equipment above: the newest status-changing event of each item leads to its
+// stored status, and transfers end at its stored location.
+const events: SeedEvent[] = [
+  {
+    id: 'a8e4b6c2-3d1f-4e5a-8b7c-000000000001',
+    equipmentCode: 'EQ-0001',
+    type: 'MAINTENANCE',
+    occurredOn: date('2024-09-10'),
+    description: 'Condenser cleaning and gas check.',
+    technician: 'Frío Sur',
+    cost: 35000,
+    ...noReferences,
+  },
+  {
+    id: 'a8e4b6c2-3d1f-4e5a-8b7c-000000000002',
+    equipmentCode: 'EQ-0001',
+    type: 'BREAKDOWN',
+    occurredOn: date('2025-06-02'),
+    description: 'Stopped cooling; technician called.',
+    ...noWork,
+    ...noReferences,
+    resultingStatus: 'IN_REPAIR',
+  },
+  {
+    id: 'a8e4b6c2-3d1f-4e5a-8b7c-000000000003',
+    equipmentCode: 'EQ-0001',
+    type: 'REPAIR',
+    occurredOn: date('2025-06-10'),
+    description: 'Thermostat replaced.',
+    technician: 'Frío Sur',
+    cost: 82000.5,
+    ...noReferences,
+  },
+  {
+    id: 'a8e4b6c2-3d1f-4e5a-8b7c-000000000004',
+    equipmentCode: 'EQ-0002',
+    type: 'BREAKDOWN',
+    occurredOn: date('2026-10-28'),
+    description: 'Compressor noise; sent to the technician.',
+    ...noWork,
+    ...noReferences,
+    resultingStatus: 'IN_REPAIR',
+  },
+  {
+    id: 'a8e4b6c2-3d1f-4e5a-8b7c-000000000005',
+    equipmentCode: 'EQ-0003',
+    type: 'MAINTENANCE',
+    occurredOn: date('2026-03-01'),
+    description: 'Yearly check-up.',
+    technician: null,
+    cost: null,
+    ...noReferences,
+  },
+  {
+    id: 'a8e4b6c2-3d1f-4e5a-8b7c-000000000006',
+    equipmentCode: 'EQ-0004',
+    type: 'BREAKDOWN',
+    occurredOn: date('2026-09-12'),
+    description: 'Does not hold temperature; awaiting a replacement decision.',
+    ...noWork,
+    ...noReferences,
+    resultingStatus: 'OUT_OF_SERVICE',
+  },
+  {
+    id: 'a8e4b6c2-3d1f-4e5a-8b7c-000000000007',
+    equipmentCode: 'EQ-0005',
+    type: 'TRANSFER',
+    occurredOn: date('2024-11-01'),
+    description: 'Lent to the kiosk.',
+    ...noWork,
+    ...noReferences,
+    fromLocationId: LOCATION_IDS.centro,
+    toLocationId: LOCATION_IDS.kioscoPlaza,
+  },
+  {
+    id: 'a8e4b6c2-3d1f-4e5a-8b7c-000000000008',
+    equipmentCode: 'EQ-0006',
+    type: 'RETIREMENT',
+    occurredOn: date('2025-12-20'),
+    description: 'Burnt motor; not worth repairing.',
+    ...noWork,
+    ...noReferences,
+  },
+];
+
 async function main(): Promise<void> {
   const { DATABASE_URL } = parseEnv(process.env);
   const prisma = createPrismaClient(DATABASE_URL);
@@ -158,11 +259,31 @@ async function main(): Promise<void> {
       for (const { id, ...data } of locations) {
         await tx.location.upsert({ where: { id }, update: data, create: { id, ...data } });
       }
+      const idsByCode = new Map<string, string>();
       for (const { code, ...data } of equipment) {
-        await tx.equipment.upsert({ where: { code }, update: data, create: { code, ...data } });
+        const { id } = await tx.equipment.upsert({
+          where: { code },
+          update: data,
+          create: { code, ...data },
+        });
+        idsByCode.set(code, id);
+      }
+      await tx.equipmentEvent.deleteMany({
+        where: { equipmentId: { in: [...idsByCode.values()] } },
+      });
+      for (const { equipmentCode, ...data } of events) {
+        const equipmentId = idsByCode.get(equipmentCode);
+        if (!equipmentId) {
+          throw new Error(`Seed event ${data.id} names unknown equipment ${equipmentCode}`);
+        }
+        await tx.equipmentEvent.create({
+          data: { ...data, equipmentId, replacementEquipmentId: null },
+        });
       }
     });
-    console.log(`Seeded ${locations.length} locations and ${equipment.length} equipment items.`);
+    console.log(
+      `Seeded ${locations.length} locations, ${equipment.length} equipment items and ${events.length} events.`,
+    );
   } finally {
     await prisma.$disconnect();
   }
