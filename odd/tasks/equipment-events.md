@@ -92,6 +92,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
   4. `feat/equipment-events-04-web-history` → T4
   5. `feat/equipment-events-05-web-register` → T5
 - Base: `feat/monorepo-scaffold`. Feature branch: `feat/equipment-events`.
+- Actual delivery (2026-11-12): all six branches pushed; PRs opened only for slices 03–05 (#11, #12, #13), each targeting `feat/monorepo-scaffold` directly, and merged in order. #11 carried the slice 01 and 02 commits, so no tracker or 01/02 PRs exist and those slices were reviewed only by the native review. CI green on #11–#13 and on `feat/monorepo-scaffold` after each merge (`bb3e9fb`); the base now matches the slice 05 tip `a1d24eb`.
 
 ## Progress
 
@@ -119,4 +120,4 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 
 ## Next step
 
-Push the chain and open PRs (user decision).
+Feature delivered. Open follow-ups: T5.1 review SUGGESTION R3-001 (history refresh assertion on the already-retired path, `EquipmentDetailPage.test.tsx:289-306`); the edit page still loads locations it no longer shows; move the duplicated `makeEvent` test helper into `apps/web/src/test/fixtures.ts`; Engram mirror `odd/equipment-events/tasks` pending.
