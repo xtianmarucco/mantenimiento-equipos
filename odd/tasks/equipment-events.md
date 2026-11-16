@@ -125,7 +125,8 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - 2026-11-16: T6.1 done (`305c7ff`): the "already retired" retire case answers an empty history first and the stored retirement on reload, and asserts the history shows it ("Baja", "Sin arreglo") after exactly two history loads; `EquipmentDetailPage.test.tsx` 21 of 21 (no RED: the assertion pins existing behavior).
 - 2026-11-16: T6.2 done (`13bd337`). RED: new edit case "does not load the locations, which the edit form does not show" failed (`/api/locations` requested); `EquipmentFormPage.test.tsx` 1 failed of 13. GREEN: 13 of 13. Choice: `EquipmentCreatePage` owns the locations load and retry and passes them to the shared controller; the edit loader passes a constant empty success state, since `EquipmentForm` renders the location field only in create mode.
 - 2026-11-16: T6.3 done (`8110dd6`): `makeEvent` (a `MAINTENANCE` event of the `makeEquipment()` item) moved to `apps/web/src/test/fixtures.ts`; reused for the history suite, the detail page `TRANSFER` event and the register page `recordedEvent`. `apps/web/src/shared/api/equipment.test.ts` keeps its inline client events (outside this task's edit surface). No RED (refactor): web 263 of 263 before and after; `pnpm lint`, `pnpm typecheck`, `pnpm exec prettier --check apps/web odd` pass.
+- 2026-11-16: T6.x review assessment (`--base-ref f509f8d --committed-only`): medium, 153 changed lines, `review_due` false (`under_budget`); the range stays pending in the slice. Parent spot check: web 263/263.
 
 ## Next step
 
-Feature delivered; follow-ups T6.1–T6.3 done. Open follow-up: Engram mirror `odd/equipment-events/tasks` pending. Optional: `apps/web/src/shared/api/equipment.test.ts` could also reuse `makeEvent`.
+Feature delivered; follow-ups T6.1–T6.3 done. Engram mirror `odd/equipment-events/tasks` synced 2026-11-16. Optional follow-up: `apps/web/src/shared/api/equipment.test.ts` could also reuse `makeEvent`.
