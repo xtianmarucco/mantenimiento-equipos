@@ -123,6 +123,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - 2026-11-12: T5.1 native review (`--base-ref c3f4dde --committed-only`): medium, `slice_budget_reached`, consent granted, reliability lens approved, acknowledged. Reviewed boundary `df5cc07`. One non-blocking SUGGESTION (R3-001, `EquipmentDetailPage.test.tsx:289-306`) left as unscheduled follow-up. Parent spot check: web 262/262.
 
 - 2026-11-16: T6.1 done: the "already retired" retire case answers an empty history first and the stored retirement on reload, and asserts the history shows it ("Baja", "Sin arreglo") after exactly two history loads; `EquipmentDetailPage.test.tsx` 21 of 21 (no RED: the assertion pins existing behavior).
+- 2026-11-16: T6.2 done. RED: new edit case "does not load the locations, which the edit form does not show" failed (`/api/locations` requested); `EquipmentFormPage.test.tsx` 1 failed of 13. GREEN: 13 of 13. Choice: `EquipmentCreatePage` owns the locations load and retry and passes them to the shared controller; the edit loader passes a constant empty success state, since `EquipmentForm` renders the location field only in create mode.
 
 ## Next step
 
