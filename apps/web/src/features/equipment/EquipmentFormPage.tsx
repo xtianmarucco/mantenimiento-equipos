@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 
 import { createEquipment, getEquipment, updateEquipment } from '../../shared/api/equipment';
 import { listLocations } from '../../shared/api/locations';
-import { isNotFound, useResource } from '../../shared/hooks/useResource';
+import { isNotFound, useResource, type ResourceState } from '../../shared/hooks/useResource';
 import { EquipmentForm, type FocusRequest } from './EquipmentForm';
 import {
   EMPTY_FORM_VALUES,
@@ -21,10 +21,28 @@ import {
 import { EquipmentLoadStatus } from './EquipmentLoadStatus';
 import { listPath, readNavigationState } from './navigation';
 
-/** Route `/equipos/nuevo`. */
+/** Route `/equipos/nuevo`: loads the locations, the only place the form shows them. */
 export function EquipmentCreatePage() {
-  return <EquipmentFormController initial={undefined} />;
+  const [locationsLoad, setLocationsLoad] = useState<
+    (signal: AbortSignal) => Promise<LocationResponse[]>
+  >(() => (signal: AbortSignal) => listLocations({ signal }));
+  const locations = useResource(locationsLoad);
+  const retryLocations = useCallback(
+    () => setLocationsLoad(() => (signal: AbortSignal) => listLocations({ signal })),
+    [],
+  );
+
+  return (
+    <EquipmentFormController
+      initial={undefined}
+      locations={locations}
+      onRetryLocations={locations.status === 'error' ? retryLocations : undefined}
+    />
+  );
 }
+
+/** The edit form shows no location (it changes only through events), so none is loaded. */
+const NO_LOCATIONS: ResourceState<LocationResponse[]> = { status: 'success', data: [] };
 
 /** Route `/equipos/:id/editar`: loads the item, then shows the form with its values. */
 export function EquipmentEditPage() {
@@ -53,24 +71,24 @@ function EquipmentEditLoader({ id, backTo }: { id: string; backTo: string }) {
       />
     );
   }
-  return <EquipmentFormController initial={loaded.data} />;
+  return <EquipmentFormController initial={loaded.data} locations={NO_LOCATIONS} />;
 }
 
 /**
  * Container shared by create and edit: holds the form state, validates with the shared schemas,
  * saves through the API (PATCH with only the changed fields on edit) and maps server errors.
  */
-function EquipmentFormController({ initial }: { initial: EquipmentResponse | undefined }) {
+function EquipmentFormController({
+  initial,
+  locations,
+  onRetryLocations,
+}: {
+  initial: EquipmentResponse | undefined;
+  locations: ResourceState<LocationResponse[]>;
+  onRetryLocations?: (() => void) | undefined;
+}) {
   const navigate = useNavigate();
   const navigationState = readNavigationState(useLocation().state);
-  const [locationsLoad, setLocationsLoad] = useState<
-    (signal: AbortSignal) => Promise<LocationResponse[]>
-  >(() => (signal: AbortSignal) => listLocations({ signal }));
-  const locations = useResource(locationsLoad);
-  const retryLocations = useCallback(
-    () => setLocationsLoad(() => (signal: AbortSignal) => listLocations({ signal })),
-    [],
-  );
 
   const [values, setValues] = useState<EquipmentFormValues>(() =>
     initial ? formValuesFromEquipment(initial) : EMPTY_FORM_VALUES,
@@ -166,7 +184,7 @@ function EquipmentFormController({ initial }: { initial: EquipmentResponse | und
         cancelState={navigationState}
         onChange={onChange}
         onSubmit={() => void onSubmit()}
-        onRetryLocations={locations.status === 'error' ? retryLocations : undefined}
+        onRetryLocations={onRetryLocations}
       />
     </section>
   );

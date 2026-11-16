@@ -248,6 +248,20 @@ describe('EquipmentEditPage', () => {
     expect(sentBodies(fetchMock, 'PATCH')).toEqual([{ name: 'Freezer vertical', notes: null }]);
   });
 
+  it('does not load the locations, which the edit form does not show', async () => {
+    const fetchMock = stubRequests({
+      [`GET /api/equipment/${ITEM.id}`]: () => jsonResponse(ITEM),
+    });
+    renderAt(EDIT_PATH);
+
+    await screen.findByRole('textbox', { name: 'Nombre' });
+    const paths = fetchMock.mock.calls.map(
+      ([input]) => new URL(String(input), 'http://x').pathname,
+    );
+    expect(paths).toContain(`/api/equipment/${ITEM.id}`);
+    expect(paths).not.toContain('/api/locations');
+  });
+
   it('returns to the detail without a request when nothing changed', async () => {
     const fetchMock = stubRequests({
       [`GET /api/equipment/${ITEM.id}`]: () => jsonResponse(ITEM),

@@ -64,6 +64,9 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - [x] T4.1 Follow-up (slice 04 review, non-blocking): R3-locations-loading-copy-untested (SUGGESTION) cover the history transfer copy while locations are loading or failed ("Cargando…" / "No se pudo cargar la ubicación.") (`apps/web/src/features/equipment/EquipmentEventHistory.tsx:127-129`). Done in slice 05 alongside T5. Commit `861d3c1` (loading copy; the failed copy was already covered).
 - [x] T5 Web register: "Registrar evento" form with type-specific fields, "Dar de baja" as `RETIREMENT`, remove status/location from the edit form; remove the legacy paths end to end (`status`/`locationId` from `updateEquipmentSchema` and the PATCH use case, `POST /:id/retire` and its use case and client), README. Commits `01f6cdf` (register form), `45548ee` (retire as `RETIREMENT`), `ffc68fc` (legacy removal, breaking).
 - [x] T5.1 Follow-up (slice 05 review, non-blocking, 4 lenses): retire flow — R4-retire-retry-not-idempotent (WARNING, `EquipmentDetailPage.tsx:84`: a retry after a lost response posts a second RETIREMENT that the API rejects; treat "already retired" as success by reloading the equipment); R2-retire-validation-masked / R3-retire-nonreason-error-generic / R4-retire-non-description-validation-opaque (WARNING + SUGGESTIONs, `EquipmentDetailPage.tsx:69-82`: show the real validation message instead of the generic retry text, and cover it); R3-reason-focus-counter-persists (SUGGESTION, `EquipmentDetailView.tsx:257-261`: reset reason focus on cancel); R2-options-field-duplicated-literal (SUGGESTION, `EquipmentEventFormPage.tsx:114-116`); R2-location-select-duplicated (SUGGESTION, `EquipmentEventForm.tsx:54`: move the grouped location select into `FormFields.tsx`). Done: `0ae3008`, `a805b23`.
+- [x] T6.1 Follow-up (T5.1 review R3-001, SUGGESTION): the "already retired" retire path test also asserts the history refresh (`apps/web/src/features/equipment/EquipmentDetailPage.test.tsx:289-306`). Commit `305c7ff`.
+- [x] T6.2 Follow-up: the edit page (`EquipmentFormPage.tsx`, edit mode) stops loading locations it no longer shows; create mode still loads and shows them. Commit `13bd337`.
+- [x] T6.3 Follow-up: move the `makeEvent` test helper from `EquipmentEventHistory.test.tsx` into `apps/web/src/test/fixtures.ts` and reuse it where web tests duplicate inline `EquipmentEventResponse` objects. Commit `8110dd6`.
 
 ## Checks
 
@@ -80,6 +83,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - T4: delegated direct (writer).
 - T5: delegated direct (writer).
 - T5.1: delegated direct (writer).
+- T6.x: delegated direct (writer).
 
 ## Delivery
 
@@ -93,6 +97,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
   5. `feat/equipment-events-05-web-register` → T5
 - Base: `feat/monorepo-scaffold`. Feature branch: `feat/equipment-events`.
 - Actual delivery (2026-11-12): all six branches pushed; PRs opened only for slices 03–05 (#11, #12, #13), each targeting `feat/monorepo-scaffold` directly, and merged in order. #11 carried the slice 01 and 02 commits, so no tracker or 01/02 PRs exist and those slices were reviewed only by the native review. CI green on #11–#13 and on `feat/monorepo-scaffold` after each merge (`bb3e9fb`); the base now matches the slice 05 tip `a1d24eb`.
+- Follow-ups (2026-11-16): PR #14 (`docs/equipment-events-delivery` → `feat/monorepo-scaffold`, delivery record) and PR #15 (`chore/equipment-events-followups` → `docs/equipment-events-delivery`, T6.1–T6.3, commits `305c7ff`..`57407cc`); merge #14 first.
 
 ## Progress
 
@@ -118,6 +123,11 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - 2026-11-12: T5.1 done (`0ae3008` fix, `a805b23` refactor). RED: `EquipmentDetailPage.test.tsx` failed 5 of 21 (no reload after a failed retirement, so a stored or "already retired" retirement stayed a failure; the before-purchase date error showed the generic retry text; reopening after a reason error focused the reason). GREEN: 21 of 21; web 262 of 262 after the refactor; `pnpm --filter @mantenimiento/shared build && pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check apps/web odd` pass. Choices: any failed RETIREMENT POST reloads the item once (no retry loop) and a RETIRED item counts as success (shows it, closes the confirmation, reloads the history), otherwise the generic failure; a non-reason validation error becomes retire step `invalid` with the field's Spanish message and no "Confirmar baja" button; `onRetireConfirm` is a plain function after the loading states, which removes the unreachable `purchaseDate === undefined` return; cancel resets the reason focus counter; `isOptionsField` guards on the `options` keys; `LocationSelectField` (with `LOCATIONS_LOAD_ERROR`, `excludeId`, `retryAction`) in `FormFields.tsx` serves both forms.
 - 2026-11-12: T5.1 native review (`--base-ref c3f4dde --committed-only`): medium, `slice_budget_reached`, consent granted, reliability lens approved, acknowledged. Reviewed boundary `df5cc07`. One non-blocking SUGGESTION (R3-001, `EquipmentDetailPage.test.tsx:289-306`) left as unscheduled follow-up. Parent spot check: web 262/262.
 
+- 2026-11-16: T6.1 done (`305c7ff`): the "already retired" retire case answers an empty history first and the stored retirement on reload, and asserts the history shows it ("Baja", "Sin arreglo") after exactly two history loads; `EquipmentDetailPage.test.tsx` 21 of 21 (no RED: the assertion pins existing behavior).
+- 2026-11-16: T6.2 done (`13bd337`). RED: new edit case "does not load the locations, which the edit form does not show" failed (`/api/locations` requested); `EquipmentFormPage.test.tsx` 1 failed of 13. GREEN: 13 of 13. Choice: `EquipmentCreatePage` owns the locations load and retry and passes them to the shared controller; the edit loader passes a constant empty success state, since `EquipmentForm` renders the location field only in create mode.
+- 2026-11-16: T6.3 done (`8110dd6`): `makeEvent` (a `MAINTENANCE` event of the `makeEquipment()` item) moved to `apps/web/src/test/fixtures.ts`; reused for the history suite, the detail page `TRANSFER` event and the register page `recordedEvent`. `apps/web/src/shared/api/equipment.test.ts` keeps its inline client events (outside this task's edit surface). No RED (refactor): web 263 of 263 before and after; `pnpm lint`, `pnpm typecheck`, `pnpm exec prettier --check apps/web odd` pass.
+- 2026-11-16: T6.x review assessment (`--base-ref f509f8d --committed-only`): medium, 153 changed lines, `review_due` false (`under_budget`); the range stays pending in the slice. Parent spot check: web 263/263.
+
 ## Next step
 
-Feature delivered. Open follow-ups: T5.1 review SUGGESTION R3-001 (history refresh assertion on the already-retired path, `EquipmentDetailPage.test.tsx:289-306`); the edit page still loads locations it no longer shows; move the duplicated `makeEvent` test helper into `apps/web/src/test/fixtures.ts`; Engram mirror `odd/equipment-events/tasks` pending.
+Feature delivered; follow-ups T6.1–T6.3 done. Engram mirror `odd/equipment-events/tasks` synced 2026-11-16. Optional follow-up: `apps/web/src/shared/api/equipment.test.ts` could also reuse `makeEvent`.

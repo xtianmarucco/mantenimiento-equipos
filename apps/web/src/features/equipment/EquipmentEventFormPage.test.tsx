@@ -10,6 +10,7 @@ import {
   LOCATION_CENTRO,
   LOCATION_KIOSCO,
   makeEquipment,
+  makeEvent,
   sentBodies,
   stubApi,
 } from '../../test/fixtures';
@@ -27,21 +28,13 @@ function recordedEvent(
   overrides: Partial<EquipmentEventResponse> = {},
 ): { event: EquipmentEventResponse; equipment: EquipmentResponse } {
   return {
-    event: {
-      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    event: makeEvent({
       equipmentId: item.id,
-      type: 'MAINTENANCE',
       occurredOn: '2026-11-01',
       description: 'Limpieza',
-      technician: null,
-      cost: null,
-      resultingStatus: null,
-      fromLocationId: null,
-      toLocationId: null,
-      replacementEquipmentId: null,
       createdAt: '2026-11-01T15:00:00.000Z',
       ...overrides,
-    },
+    }),
     equipment: item,
   };
 }

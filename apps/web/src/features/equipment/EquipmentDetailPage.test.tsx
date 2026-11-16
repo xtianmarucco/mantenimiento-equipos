@@ -1,4 +1,3 @@
-import type { EquipmentEventResponse } from '@mantenimiento/shared';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -10,6 +9,7 @@ import {
   LOCATION_CENTRO,
   LOCATION_KIOSCO,
   makeEquipment,
+  makeEvent,
   requestedPaths,
   sentBodies,
   stubApi,
@@ -25,20 +25,13 @@ const ITEM = makeEquipment({
 const DETAIL_PATH = `/api/equipment/${ITEM.id}`;
 const EVENTS_PATH = `${DETAIL_PATH}/events`;
 
-const TRANSFER: EquipmentEventResponse = {
-  id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+const TRANSFER = makeEvent({
   equipmentId: ITEM.id,
   type: 'TRANSFER',
-  occurredOn: '2026-10-20',
   description: 'Mudanza al kiosco',
-  technician: null,
-  cost: null,
-  resultingStatus: null,
   fromLocationId: LOCATION_CENTRO.id,
   toLocationId: LOCATION_KIOSCO.id,
-  replacementEquipmentId: null,
-  createdAt: '2026-10-20T15:00:00.000Z',
-};
+});
 
 function retirementOf(item: typeof ITEM, description: string) {
   return {
@@ -286,7 +279,13 @@ describe('EquipmentDetailPage', () => {
   });
 
   it('treats the "already retired" rejection of a repeated retirement as done', async () => {
+    // The first retirement was stored, so the refreshed history holds it.
+    let historyLoads = 0;
     const { fetchMock } = renderDetail(ITEM, {
+      events: () => {
+        historyLoads += 1;
+        return jsonResponse(historyLoads === 1 ? [] : [retirementOf(ITEM, 'Sin arreglo').event]);
+      },
       record: () =>
         jsonResponse(
           {
@@ -305,6 +304,11 @@ describe('EquipmentDetailPage', () => {
     expect(fieldValue('Estado')).toHaveTextContent('Dado de baja');
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(sentBodies(fetchMock, 'POST')).toHaveLength(1);
+    const history = screen.getByRole('region', { name: 'Historial' });
+    const item = await within(history).findByRole('listitem');
+    expect(item).toHaveTextContent('Baja');
+    expect(item).toHaveTextContent('Sin arreglo');
+    expect(historyLoads).toBe(2);
   });
 
   it('shows the date validation message instead of a retry when today is before the purchase date', async () => {
