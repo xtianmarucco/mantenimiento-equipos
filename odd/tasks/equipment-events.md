@@ -64,6 +64,9 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - [x] T4.1 Follow-up (slice 04 review, non-blocking): R3-locations-loading-copy-untested (SUGGESTION) cover the history transfer copy while locations are loading or failed ("Cargando…" / "No se pudo cargar la ubicación.") (`apps/web/src/features/equipment/EquipmentEventHistory.tsx:127-129`). Done in slice 05 alongside T5. Commit `861d3c1` (loading copy; the failed copy was already covered).
 - [x] T5 Web register: "Registrar evento" form with type-specific fields, "Dar de baja" as `RETIREMENT`, remove status/location from the edit form; remove the legacy paths end to end (`status`/`locationId` from `updateEquipmentSchema` and the PATCH use case, `POST /:id/retire` and its use case and client), README. Commits `01f6cdf` (register form), `45548ee` (retire as `RETIREMENT`), `ffc68fc` (legacy removal, breaking).
 - [x] T5.1 Follow-up (slice 05 review, non-blocking, 4 lenses): retire flow — R4-retire-retry-not-idempotent (WARNING, `EquipmentDetailPage.tsx:84`: a retry after a lost response posts a second RETIREMENT that the API rejects; treat "already retired" as success by reloading the equipment); R2-retire-validation-masked / R3-retire-nonreason-error-generic / R4-retire-non-description-validation-opaque (WARNING + SUGGESTIONs, `EquipmentDetailPage.tsx:69-82`: show the real validation message instead of the generic retry text, and cover it); R3-reason-focus-counter-persists (SUGGESTION, `EquipmentDetailView.tsx:257-261`: reset reason focus on cancel); R2-options-field-duplicated-literal (SUGGESTION, `EquipmentEventFormPage.tsx:114-116`); R2-location-select-duplicated (SUGGESTION, `EquipmentEventForm.tsx:54`: move the grouped location select into `FormFields.tsx`). Done: `0ae3008`, `a805b23`.
+- [ ] T6.1 Follow-up (T5.1 review R3-001, SUGGESTION): the "already retired" retire path test also asserts the history refresh (`apps/web/src/features/equipment/EquipmentDetailPage.test.tsx:289-306`).
+- [ ] T6.2 Follow-up: the edit page (`EquipmentFormPage.tsx`, edit mode) stops loading locations it no longer shows; create mode still loads and shows them.
+- [ ] T6.3 Follow-up: move the `makeEvent` test helper from `EquipmentEventHistory.test.tsx` into `apps/web/src/test/fixtures.ts` and reuse it where web tests duplicate inline `EquipmentEventResponse` objects.
 
 ## Checks
 
@@ -80,6 +83,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - T4: delegated direct (writer).
 - T5: delegated direct (writer).
 - T5.1: delegated direct (writer).
+- T6.x: delegated direct (writer).
 
 ## Delivery
 
@@ -117,6 +121,8 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
 - 2026-11-12: Slice 05 native review (`--base-ref e8427df --committed-only`): high (`hot_path`: update path), consent granted, 4 lenses (risk, resilience, readability, reliability) approved, acknowledged. Reviewed boundary `c3f4dde`. Seven advisories recorded as T5.1. Parent spot check: web 257/257.
 - 2026-11-12: T5.1 done (`0ae3008` fix, `a805b23` refactor). RED: `EquipmentDetailPage.test.tsx` failed 5 of 21 (no reload after a failed retirement, so a stored or "already retired" retirement stayed a failure; the before-purchase date error showed the generic retry text; reopening after a reason error focused the reason). GREEN: 21 of 21; web 262 of 262 after the refactor; `pnpm --filter @mantenimiento/shared build && pnpm typecheck`, `pnpm lint`, `pnpm exec prettier --check apps/web odd` pass. Choices: any failed RETIREMENT POST reloads the item once (no retry loop) and a RETIRED item counts as success (shows it, closes the confirmation, reloads the history), otherwise the generic failure; a non-reason validation error becomes retire step `invalid` with the field's Spanish message and no "Confirmar baja" button; `onRetireConfirm` is a plain function after the loading states, which removes the unreachable `purchaseDate === undefined` return; cancel resets the reason focus counter; `isOptionsField` guards on the `options` keys; `LocationSelectField` (with `LOCATIONS_LOAD_ERROR`, `excludeId`, `retryAction`) in `FormFields.tsx` serves both forms.
 - 2026-11-12: T5.1 native review (`--base-ref c3f4dde --committed-only`): medium, `slice_budget_reached`, consent granted, reliability lens approved, acknowledged. Reviewed boundary `df5cc07`. One non-blocking SUGGESTION (R3-001, `EquipmentDetailPage.test.tsx:289-306`) left as unscheduled follow-up. Parent spot check: web 262/262.
+
+- 2026-11-16: T6.1 done: the "already retired" retire case answers an empty history first and the stored retirement on reload, and asserts the history shows it ("Baja", "Sin arreglo") after exactly two history loads; `EquipmentDetailPage.test.tsx` 21 of 21 (no RED: the assertion pins existing behavior).
 
 ## Next step
 

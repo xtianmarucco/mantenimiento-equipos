@@ -286,7 +286,13 @@ describe('EquipmentDetailPage', () => {
   });
 
   it('treats the "already retired" rejection of a repeated retirement as done', async () => {
+    // The first retirement was stored, so the refreshed history holds it.
+    let historyLoads = 0;
     const { fetchMock } = renderDetail(ITEM, {
+      events: () => {
+        historyLoads += 1;
+        return jsonResponse(historyLoads === 1 ? [] : [retirementOf(ITEM, 'Sin arreglo').event]);
+      },
       record: () =>
         jsonResponse(
           {
@@ -305,6 +311,11 @@ describe('EquipmentDetailPage', () => {
     expect(fieldValue('Estado')).toHaveTextContent('Dado de baja');
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(sentBodies(fetchMock, 'POST')).toHaveLength(1);
+    const history = screen.getByRole('region', { name: 'Historial' });
+    const item = await within(history).findByRole('listitem');
+    expect(item).toHaveTextContent('Baja');
+    expect(item).toHaveTextContent('Sin arreglo');
+    expect(historyLoads).toBe(2);
   });
 
   it('shows the date validation message instead of a retry when today is before the purchase date', async () => {
