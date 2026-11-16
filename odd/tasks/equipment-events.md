@@ -97,6 +97,7 @@ Out of scope: authentication/roles ("who" is not recorded until roles exist), QR
   5. `feat/equipment-events-05-web-register` → T5
 - Base: `feat/monorepo-scaffold`. Feature branch: `feat/equipment-events`.
 - Actual delivery (2026-11-12): all six branches pushed; PRs opened only for slices 03–05 (#11, #12, #13), each targeting `feat/monorepo-scaffold` directly, and merged in order. #11 carried the slice 01 and 02 commits, so no tracker or 01/02 PRs exist and those slices were reviewed only by the native review. CI green on #11–#13 and on `feat/monorepo-scaffold` after each merge (`bb3e9fb`); the base now matches the slice 05 tip `a1d24eb`.
+- Follow-ups (2026-11-16): PR #14 (`docs/equipment-events-delivery` → `feat/monorepo-scaffold`, delivery record) and PR #15 (`chore/equipment-events-followups` → `docs/equipment-events-delivery`, T6.1–T6.3, commits `305c7ff`..`57407cc`); merge #14 first.
 
 ## Progress
 
