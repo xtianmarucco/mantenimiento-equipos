@@ -1,4 +1,8 @@
-import type { EquipmentResponse, LocationResponse } from '@mantenimiento/shared';
+import type {
+  EquipmentEventResponse,
+  EquipmentResponse,
+  LocationResponse,
+} from '@mantenimiento/shared';
 import { vi } from 'vitest';
 
 export const LOCATION_CENTRO: LocationResponse = {
@@ -35,6 +39,25 @@ export function makeEquipment(overrides: Partial<EquipmentResponse> = {}): Equip
     notes: null,
     createdAt: '2026-10-01T12:00:00.000Z',
     updatedAt: '2026-10-01T12:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/** A `MAINTENANCE` event of the `makeEquipment()` item with no optional field set. */
+export function makeEvent(overrides: Partial<EquipmentEventResponse> = {}): EquipmentEventResponse {
+  return {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    equipmentId: makeEquipment().id,
+    type: 'MAINTENANCE',
+    occurredOn: '2026-10-20',
+    description: 'Limpieza de condensador',
+    technician: null,
+    cost: null,
+    resultingStatus: null,
+    fromLocationId: null,
+    toLocationId: null,
+    replacementEquipmentId: null,
+    createdAt: '2026-10-20T15:00:00.000Z',
     ...overrides,
   };
 }

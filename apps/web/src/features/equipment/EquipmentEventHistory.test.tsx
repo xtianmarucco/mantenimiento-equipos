@@ -5,29 +5,10 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ResourceState } from '../../shared/hooks/useResource';
-import { LOCATION_CENTRO, LOCATION_KIOSCO, makeEquipment } from '../../test/fixtures';
+import { LOCATION_CENTRO, LOCATION_KIOSCO, makeEvent } from '../../test/fixtures';
 import { EquipmentEventHistory } from './EquipmentEventHistory';
 
-const EQUIPMENT_ID = makeEquipment().id;
 const REPLACEMENT_ID = '55555555-5555-4555-8555-555555555555';
-
-function makeEvent(overrides: Partial<EquipmentEventResponse> = {}): EquipmentEventResponse {
-  return {
-    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
-    equipmentId: EQUIPMENT_ID,
-    type: 'MAINTENANCE',
-    occurredOn: '2026-10-20',
-    description: 'Limpieza de condensador',
-    technician: null,
-    cost: null,
-    resultingStatus: null,
-    fromLocationId: null,
-    toLocationId: null,
-    replacementEquipmentId: null,
-    createdAt: '2026-10-20T15:00:00.000Z',
-    ...overrides,
-  };
-}
 
 const LOCATIONS: ResourceState<LocationResponse[]> = {
   status: 'success',
